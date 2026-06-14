@@ -40,3 +40,6 @@ data/warehouse/gat_static_*.pt
 data/warehouse/gat_dynamic_*.pt
 data/warehouse/gat_attention.pt
 data/warehouse/gat_energy*.pt
+data/warehouse/_shuf.pt
+data/warehouse/gat_energy_daily.pt
+data/warehouse/_honest.pt

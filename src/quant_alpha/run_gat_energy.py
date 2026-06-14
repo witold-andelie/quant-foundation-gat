@@ -49,12 +49,24 @@ from quant_alpha.run_gat_equity import (
 ENERGY_ALPHA_NAMES = tuple(a.name for a in ENERGY_ALPHA_REGISTRY)
 
 
-def _floored_forward_return(panel: pd.DataFrame, k: int, price_col: str, floor: float, clip: float) -> pd.Series:
-    """The raw (un-standardised) label, for evaluate_alpha_suite's IC/backtest —
-    same formula as the training label before cross-sectional standardisation."""
+def _floored_forward_return(
+    panel: pd.DataFrame, k: int, price_col: str, floor: float, clip: float | None = None
+) -> pd.Series:
+    """The realised forward return for evaluate_alpha_suite's IC/backtest.
+
+    Keeps the denominator floor (power prices go negative/near-zero, so
+    ``clip(|price|, floor)`` stabilises the division) but does NOT value-clip
+    by default. E13 showed that applying the training label's ``+/-0.8`` clip to
+    the *evaluation* return manufactures a huge Sharpe by capping the
+    short-leg's scarcity-spike tail losses (the strategy shorts expensive zones,
+    which spike to ~1900 EUR/MWh): under the honest unclipped return the same
+    cross-sectional strategy *loses* money (Sharpe ~ -1.5). Training may clip a
+    robust target; evaluation must not hide realised tail risk. ``clip`` is kept
+    as an opt-in only for diagnostics/back-compat."""
     cur = panel[price_col]
     fwd = panel.groupby(level=1)[price_col].transform(lambda s: s.shift(-k))
-    return ((fwd - cur) / cur.abs().clip(lower=floor)).clip(-clip, clip)
+    ret = (fwd - cur) / cur.abs().clip(lower=floor)
+    return ret.clip(-clip, clip) if clip is not None else ret
 
 
 def gat_energy_from_panel(
@@ -108,7 +120,10 @@ def gat_energy_from_panel(
         feats[f"{col}_rank"] = feats.groupby("timestamp")[col].rank(pct=True)
     feats["ret_1d"] = feats.groupby("market")["spot_price"].pct_change()
     indexed = feats.set_index(["timestamp", "market"]).sort_index()
-    indexed["forward_return"] = _floored_forward_return(indexed, k, "spot_price", floor, clip)
+    # Evaluation return is UNCLIPPED (clip=None): clipping the realised return
+    # hides the short-leg tail risk and manufactures a fake Sharpe (E13). The
+    # training label keeps its clip via energy_cross_sectional_label below.
+    indexed["forward_return"] = _floored_forward_return(indexed, k, "spot_price", floor, clip=None)
 
     feature_cols = tuple(f"{col}_rank" for col in active_alphas)
     times = sorted(indexed.index.get_level_values(0).unique())

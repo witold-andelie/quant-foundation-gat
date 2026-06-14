@@ -12,8 +12,8 @@ self-correction trail (e.g. E9 → E9b device deconfound) stays auditable, which
 is itself a credibility asset for the paper._
 
 **Contents:** evaluation framework (methods) · headline results (summary table)
-· paper evidence map (C1-C13) · narrative order · consolidated limitations ·
-reproducibility · chronological entries E1-E12.
+· paper evidence map (C1-C14) · narrative order · consolidated limitations ·
+reproducibility · chronological entries E1-E13.
 
 ---
 
@@ -86,15 +86,18 @@ token-gated). All multi-seed numbers are mean ± std over 5 seeds, CPU.
 | Equity, first real run (1 seed) | 0.0066 | 1.42 | n/a | F/T/T/T | E5 |
 | Energy, winner + walk-forward (synthetic) | -0.011 | -1.11 | -0.59 | F/F/T/T | E11 |
 | Energy, winner + single (synthetic) | -0.009 | -1.26 | -0.74 | F/F/T/T | E11 |
-| Energy, REAL ENTSO-E (artifact — do not cite as value) | 0.202 | 8.25 | +8.17 | +14.9 | T/T/T/T | E12 |
+| Energy, REAL ENTSO-E hourly (artifact, E12) | 0.202 | 8.25 | +8.17 | +14.9 | T/T/T/T | E12 |
+| Energy, REAL daily — clipped eval (artifact, E13) | 0.218 | 11.08 | — | — | T/T/T/T | E13 |
+| Energy, REAL daily — HONEST unclipped eval (E13b) | 0.210 | **-1.54** | — | — | loses | E13b |
 
 Reference points: best single equity alpha (`alpha_wq_010_gap_quality`) OOS
-Sharpe ≈ 2.9-3.1; **attention value-add positive in 30/30 equity seeded runs**;
-energy attention value-add negative on synthetic (correct null). Equity passes
-3/4 gates (Value-added open). The energy REAL-DATA row is a **cautionary
-artifact** (E12/C13): the implausible magnitude reflects overlapping labels +
-day-ahead lookahead + mis-annualisation, not alpha — kept in the table only as
-the worked leakage example, never as a value claim.
+Sharpe ≈ 2.9-3.1; **attention value-add positive in 30/30 equity seeded runs**.
+Equity passes 3/4 gates (Value-added open). **No energy row is a value claim**
+(E12/E13/E13b, C13/C14): every positive energy Sharpe is an artifact (overlap,
+annualisation, then return-clipping). Under the honest *unclipped* return the
+energy cross-sectional strategy **loses money** (Sharpe -1.5, GAT and trivial
+predictor alike). Equity is the project's genuine value demonstration; energy
+is the cautionary-methodology result.
 
 Headline reading: **learned attention reliably beats unlearned relational
 propagation (the core thesis), the composite is a real/unique/consistent signal
@@ -124,14 +127,17 @@ here is not yet supported.
 | C11 | **Attention is interpretable and mechanistically explains the result**: 91.6% on neighbours (not self-collapse), but near-uniform across ~12.5 neighbours (entropy 0.96, sector lift +0.019) — a gentle reweighting of mean pooling, which is *why* the edge over the uniform anchor is real but modest (C3). Hubs are economically sensible mega-caps/bellwethers. The structure is temporally stationary, so the "regime-adaptive" framing is **not** supported at the aggregate level | E10 | `2026-06-11_attention_*.csv`, `figures/` |
 | C12 | **One kernel, two heterogeneous graphs (dual-track)**: a physical interconnector graph (20 bidding zones, hourly label) runs through the *same* GAT model, section builder, four gates, and A/B as the equity correlation graph — only graph/label/nodes differ. Synthetic energy is a clean negative control (attention VA negative; no false positives, C1) | E11 | `2026-06-11_energy_*.csv/json`, ADR-0006 |
 | C13 | **Cautionary real-data result (methodology contribution)**: live ENTSO-E energy data produces implausible metrics (Sharpe 8.25, composite ~100x its best single, 4/4 gates) that are *artifacts* — overlapping 24h labels at hourly cadence (lag-1 autocorr 0.91), a trivial `-spot[t]` predictor with higher IC (0.235 > 0.20), wrong annualisation, and day-ahead lookahead. The project's own skepticism catches it; a valid energy claim needs a market-structure-aware label (vindicates ADR-0004) | E12 | `2026-06-11_energy_real_*`, E12 diagnosis |
+| C14 | **The energy strategy LOSES money under honest returns — airtight negative verdict.** The daily redesign fixed overlap/annualisation/leak, but a deeper check (prompted by a challenge) found a third artifact: the evaluation return's `+/-0.8` clip caps the short-leg's scarcity-spike tail losses. Under the honest *unclipped* return both the GAT (Sharpe +11 -> **-1.54**) and a trivial `-price` predictor (+6.28 -> **-1.52**) lose money; rank-IC stays ~0.21 but does not translate to PnL. Every positive energy number (E12/E13) was an artifact (overlap, annualisation, return-clip). Fix shipped (unclipped eval). Lesson: never value-clip the evaluation return | E12 -> E13 -> E13b | `2026-06-11_energy_daily_*`, E13b |
 
 **Suggested paper narrative order** (each step cites the rows above):
 methods & seams (ADRs) -> evaluation protocol & leakage controls (C1, C7) ->
 training objective (C2) -> main A/B result (C3) -> gates & honest reading
 (C4, C5) -> ablation & negative results (C6) -> robustness & variance
 (C8, C9, C10) -> attention interpretability & mechanism (C11) -> dual-track
-generalisation: one kernel, two graphs (C12) -> a real-data leakage cautionary
-tale caught by our own skepticism (C13) -> limitations -> future work.
+generalisation: one kernel, two graphs (C12) -> a real-data
+diagnose-redesign-challenge-verdict arc (C13 artifact -> C14 two more artifacts
+caught, honest conclusion: the energy strategy loses money) showing rigorous,
+self-correcting result-skepticism -> limitations -> future work.
 
 ---
 
@@ -152,13 +158,15 @@ scope choice, not an oversight, and several are themselves results.
    (E10/C11) — the value comes from small tilts on broad pooling, and the
    coarse attention structure is temporally stationary, contradicting the
    original "macro-regime-adaptive" hypothesis. Reported as a finding.
-4. **Energy value claim unvalidated; real-data metrics are leakage artifacts**
-   — synthetic energy is a clean negative control (C12); real ENTSO-E data
-   (E12/C13) produces implausible metrics (Sharpe 8.25) from overlapping 24h
-   labels (autocorr 0.91), day-ahead lookahead, a trivial `-spot` predictor
-   (IC 0.235 > GAT's 0.20), and 252-vs-8760 mis-annualisation. A valid energy
-   result needs a market-structure-aware label/evaluation. Never cite the
-   real-data energy numbers as value.
+4. **The energy strategy loses money under honest returns (concluded)** —
+   synthetic is a clean negative control (C12); real hourly is a leakage
+   artifact (E12); the daily redesign fixes overlap/annualisation/leak but a
+   deeper check (E13b) found the evaluation return's `+/-0.8` clip was hiding
+   short-leg scarcity-spike tail losses. Under the honest *unclipped* return
+   both the GAT and a trivial `-price` predictor have **negative** OOS Sharpe
+   (~ -1.5); rank-IC ~0.21 does not translate to PnL. Energy yields no
+   tradeable alpha; it is a cautionary-methodology contribution (three nested
+   artifacts, each caught). Equity is the genuine value result.
 5. **Walk-forward significance is config-local** — significant in the tuned
    config (E9b, t~3.9) and directionally consistent across three paired
    comparisons, but n=5 per arm; not a large-sample claim.
@@ -182,7 +190,9 @@ scope choice, not an oversight, and several are themselves results.
   `run_real.py` (E5), `run_matrix.py` (E6), `run_seeds.py` (E7),
   `bench_gpu.py` (E8), `run_hp_grid.py`+`run_winner.py` (E9/E9b),
   `run_attention.py` (E10), `run_energy.py` (E11), `run_energy_real.py` (E12,
-  live ENTSO-E; `ENTSOE_API_KEY` env + `configs/energy_universe_gnn.yaml`).
+  live ENTSO-E; `ENTSOE_API_KEY` env + `configs/energy_universe_gnn.yaml`),
+  `run_energy_daily.py` (E13, daily label redesign), `run_energy_honest.py`
+  (E13b, return-definition diagnostic + honest-return verdict).
 - **Artifacts** (`docs/results/`, date-prefixed): per-run diagnostics CSVs,
   matrix/seed/HP/winner/energy summaries (CSV+JSON), attention time-series CSVs
   + five figures under `figures/`. Representative model weights are gitignored
@@ -783,6 +793,121 @@ information, not future.
 GNN can manufacture an implausible result on a market whose microstructure
 breaks a naive cross-sectional label — and of catching it. Pair with C1/E1/E11
 (no false positives) as the credibility spine.
+
+---
+
+## E13 — Energy label redesign: artifacts fixed, verdict reached (2026-06-11)
+
+The follow-up to E12: redesign the energy label to the correct day-ahead-market
+frame and determine whether a credible result survives, or confirm it does not.
+
+**Redesign (market-structure-aware).** The day-ahead auction clears all 24
+hours of delivery day D at once at gate closure on D-1, so the correct decision
+frequency is **daily and non-overlapping**, not hourly. New setup:
+- snapshot = delivery day D (daily); features = day-D base-load-aggregated
+  alphas (data <= D only); label = next-day base-load price change D->D+1
+  (genuinely unknown — the D+1 auction has not cleared), z-scored
+  cross-sectionally; annualise at 365 (daily, 7 days/week).
+- 365 days x 20 zones; interconnector graph; winner HPs; k=1 day. Script
+  `.scratch/run_energy_daily.py`; artifacts `2026-06-11_energy_daily_*`.
+
+**Artifact checks — the mechanical bugs are fixed:**
+
+| check | E12 hourly | E13 daily | status |
+|---|---|---|---|
+| label lag-1 autocorr | 0.91 | **-0.10** | overlap removed |
+| annualisation | 252 (wrong) | 365 | corrected |
+| shuffle-label valid IC | — | **0.07** vs real 0.19 | no leak (signal genuine) |
+
+**Result — still non-credible, and that is the verdict:**
+
+| predictor | OOS IC | OOS Sharpe |
+|---|---|---|
+| GAT composite | 0.218 | 11.08 |
+| **trivial `-price[D]`** | **0.158** | **6.15** |
+| uniform anchor | — | -7.48 |
+| island anchor | — | -7.87 |
+
+**Findings (the honest conclusion).**
+
+1. **The signal is real, not leakage** — shuffle-label IC (0.07) is a third of
+   the real (0.19), and the trivial `-price` relationship is genuine
+   mean-reversion, not lookahead. So the redesign did not just hide the
+   problem.
+2. **But it is non-tradeable cross-zonal price *convergence*, not alpha.** A
+   one-line `-price[D]` predictor already gets OOS Sharpe 6.15: the dominant
+   effect is the law-of-one-price across interconnected zones (high-price zones
+   converge down day-over-day). This is a real physical regularity enforced by
+   transmission, **already priced by the market** (cross-border capacity
+   auctions / FTRs), so a paper long-short on day-ahead *price returns*
+   massively overstates any achievable return — Sharpe 6-11 measures the
+   physics of price coupling, not a trading edge.
+3. **The GAT adds incremental IC over trivial** (0.218 vs 0.158) — there is
+   some relational structure beyond raw price level — but on a non-tradeable
+   base, so the increment does not rescue a tradeable claim.
+4. **Verdict: with day-ahead price-return targets and the available data,
+   energy yields no credible *tradeable* relational alpha.** The redesign
+   correctly removed the artifacts and revealed that the underlying signal is
+   non-tradeable convergence. A genuinely tradeable energy target would need
+   real balancing/intraday spreads or capacity/FTR-aware PnL (data we do not
+   have). The energy track's contribution is the **methodology** (dual-track
+   infra + the E12->E13 diagnose-and-redesign arc), not a tradeable result;
+   equity remains the project's genuine value demonstration.
+
+**Paper use.** E12+E13 are a complete worked example of GNN result-skepticism:
+find an implausible result, diagnose the artifacts, redesign to remove them,
+and keep digging when the number stays implausible. See the E13b correction —
+the "non-tradeable convergence" reading in finding 2 above was itself premature.
+
+### E13b — Correction: it is not "non-tradeable convergence", it LOSES money
+
+Prompted by a direct challenge ("have you actually confirmed it?"), a deeper
+check found a **third artifact** and overturned the E13 finding-2 framing.
+
+The Sharpe is entirely an artifact of the **evaluation return's `+/-0.8`
+clip**, not convergence. Same trivial `-price[D]` predictor, OOS long-short
+Sharpe under different return definitions:
+
+| evaluation return | trivial `-price` Sharpe |
+|---|---|
+| floored + `+/-0.8` clip (E13) | **+6.28** |
+| plain relative `p[D+1]/p[D]-1` (honest) | **-1.52** |
+| log | +3.75 |
+| winsorised `+/-0.5` | +4.61 |
+
+And the **GAT composite** under honest vs clipped returns:
+
+| return | GAT OOS IC | GAT OOS Sharpe |
+|---|---|---|
+| floored + clip (E13) | +0.218 | **+11.00** |
+| plain (honest) | +0.210 | **-1.54** |
+
+**Mechanism.** The strategy shorts expensive zones; European power prices have
+fat right tails (scarcity spikes to ~1900 EUR/MWh in this 2024 sample). The
+`+/-0.8` clip on the *evaluation* return caps those short-leg losses, turning a
+genuinely losing strategy into an apparent Sharpe-11 winner. The rank-IC
+(~0.21) stays positive under both returns — cheap zones do tend to rise — but
+**the IC does not translate to PnL** because it is blind to the tail
+magnitudes that the realised return carries. Equity is unaffected: its
+evaluation return is unclipped, so its ~1.4 Sharpe is honest.
+
+**Final verdict (airtight).** The energy cross-sectional day-ahead strategy is
+**not a tradeable alpha — under honest unclipped returns it loses money
+(Sharpe ~ -1.5), for both the GAT and the trivial predictor.** Every positive
+energy number across E12/E13 was an artifact (overlap, annualisation, then
+return-clipping). The GAT adds no tradeable value over a one-line baseline.
+
+**Fix shipped:** `run_gat_energy._floored_forward_return` now evaluates on the
+**unclipped** realised return by default (keeps only the denominator floor for
+division stability), so the repo no longer reports the inflated number.
+
+**Paper use (revised).** The honest arc is stronger for being longer: implausible
+result -> fix overlap/annualisation -> still implausible -> challenged ->
+find the return-clip artifact -> honest verdict that the strategy loses money.
+Three artifacts, each caught. The lesson — *never value-clip the evaluation
+return; rank-IC can be positive while PnL is negative when tails matter* — is a
+transferable methodological contribution. Equity remains the genuine value
+result; energy is the cautionary-methodology result.
 
 ---
 

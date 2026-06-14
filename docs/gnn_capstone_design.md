@@ -10,7 +10,7 @@
 > physical interconnector graph (`edges_energy`, ~20 zones), floored hourly
 > label, and `run_gat_energy` are built and tested, sharing the equity GAT
 > kernel verbatim — the "one kernel, two graphs" thesis is literal in code.
-> See `gat_experiment_log.md` (E1-E12) for the record and `CAPSTONE_STATUS.md`
+> See `gat_experiment_log.md` (E1-E13) for the record and `CAPSTONE_STATUS.md`
 > for the resume point. The implemented module layout follows the
 > ADR-0001/0002 seams: `graph/{propagate,training,edges_equity,edges_energy,
 > attention}.py`, `features/factor.py`, `models/gat.py`,

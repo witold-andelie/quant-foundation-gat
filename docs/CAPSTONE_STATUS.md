@@ -19,10 +19,12 @@ training (IC loss; single or walk-forward) -> composite + no-learning anchors
 -> four gates + attention A/B. **55 new-module tests passing; no
 `NotImplementedError` left in `src/`.** Equity has real-data value (3/4 gates,
 attention 30/30 positive). **Energy: synthetic is a clean negative control;
-the real-data run (E12) produces implausible Sharpe-8 metrics that the
-project's own skepticism diagnoses as leakage artifacts (overlapping 24h
-labels, day-ahead lookahead, mis-annualisation) — a cautionary methodology
-result (C13), NOT a value claim.** Split hygiene locked (ADR-0003 amendment);
+real ENTSO-E produced implausible Sharpe-8/11 metrics diagnosed across E12->E13
+->E13b as THREE nested artifacts (overlap, annualisation, evaluation-return
+clipping). Under the honest unclipped return the energy cross-sectional
+strategy LOSES money (Sharpe ~ -1.5, GAT and trivial `-price` alike); rank-IC
+~0.21 does not translate to PnL (C13/C14). Fix shipped (unclipped eval). Energy
+is a cautionary-methodology contribution, NOT a value claim.** Split hygiene locked (ADR-0003 amendment);
 leakage controls automated; HP selection used valid IC only and transferred
 to OOS in the walk-forward arm (E9/E9b, device-deconfounded). Headline:
 **attention value-add over the uniform anchor is positive in 30/30 seeded
@@ -146,14 +148,14 @@ cautionary methodology result.** 55 tests.
 
 Remaining, in order:
 
-1. **Energy label/eval redesign for a valid real-data result** — E12 showed a
-   naive equity-label port to day-ahead power leaks (overlapping 24h windows,
-   day-ahead lookahead, mis-annualisation). A real energy value claim needs: a
-   non-overlapping horizon aligned to the day-ahead gate-close; features
-   strictly available before gate-close; hourly annualisation (8760, not 252);
-   a deflated/block-bootstrap Sharpe. The infra (`fetch_energy_raw`
-   source=entsoe, `configs/energy_universe_gnn.yaml`) is ready; this is a
-   research redesign, not plumbing.
+1. ~~Energy label/eval redesign~~ — **DONE, E13/E13b (airtight verdict).** The
+   daily redesign fixed overlap/annualisation/leak; a challenge-prompted deeper
+   check found the evaluation-return clip hid short-leg tail losses. Under the
+   honest unclipped return the energy strategy LOSES money (Sharpe ~ -1.5, GAT
+   and trivial `-price` alike). Conclusion: no tradeable energy alpha with
+   day-ahead price-return targets. Fix shipped (unclipped eval default). A
+   genuine tradeable target would need balancing/intraday spreads or FTR-aware
+   PnL (data unavailable) — out of capstone scope.
 2. **Value-added gate variants** — the strict max-of-singles bar (3.07) is
    the one open gate; add mean-of-singles and marginal-contribution-to-a-
    multifactor-portfolio readings before concluding the composite adds
@@ -161,7 +163,7 @@ Remaining, in order:
 3. **Platform integration (M5)** — composite into dbt marts; Streamlit
    "GAT vs Baseline" page (now has real content: E6 matrix, E7/E9 seed
    distributions, E10 attention figures).
-4. **Paper assembly** — the evidence map (C1-C13) and narrative order are
+4. **Paper assembly** — the evidence map (C1-C14) and narrative order are
    ready in the experiment log; limitations list in E5 + static-graph
    lookahead + stationary-attention (E10) + energy-on-synthetic (E11).
    Data-source upgrade (survivorship-bias-free vendor) if time permits.
