@@ -64,7 +64,8 @@ is significant in this config (IC t~3.9). Value-added (vs best single,
 | `graph/attention.py` | torch-free M4 analysis over the tidy attention frame: `self_attention_over_time`, `sector_homophily_over_time`, `attention_concentration_over_time`, `hub_scores`, `attention_matrix` |
 | `features/factor.py` | unified `Factor`, `FactorProvider`, `apply_factors`, `propagate_over_panel`; `ExpressionFactorProvider`, `GraphFactorProvider`, `LegacyEnergyProvider` (wraps the 8 imperative energy alphas as Factors, memoised — no stubs left) |
 | `models/gat.py` | torch zone (needs `[gnn]`): `GATModel` (+`forward_with_attention`), `GATConfig`, `CrossSection`, `FactorGraphDataset`, `build_sections` (+`label_fn` hook), `fit`, `composite_series`, `walk_forward_composite_series`, `attention_panel`, `predict_panel`, losses, `time_ordered_split` |
-| `run_gat_equity.py` | equity axis: `gat_equity_from_panel` (orchestration; `loss`/`graph`/`retrain` switches), `run_gat_equity` (CLI wrapper), `gate_report` (four gates), `ab_report` + `_baseline_columns` (attention A/B anchors — reused by energy) |
+| `run_gat_equity.py` | equity axis: `gat_equity_from_panel` (orchestration; `loss`/`graph`/`retrain` switches), `run_gat_equity` (CLI wrapper, `persist=` to DuckDB), `gate_report` (four gates), `ab_report` + `_baseline_columns` (attention A/B anchors — reused by energy), `gat_warehouse_frames`/`persist_gat_outputs` (4 dbt source tables) |
+| `dbt_quant_alpha/` | GAT marts: `stg_gat_panel`, `fct_gat_vs_baseline` (tiered relational A/B), `fct_gat_scorecard` (one-row gates + attention A/B); source `gat_relational` |
 | `run_gat_energy.py` | energy axis (dual-track): `gat_energy_from_panel`, `run_gat_energy` — same kernel, physical interconnector graph + hourly label + bidding-zone nodes |
 
 Config: `Universe.sectors` added (`config.py`); `configs/universe.yaml` = 50 names
@@ -160,9 +161,12 @@ Remaining, in order:
    the one open gate; add mean-of-singles and marginal-contribution-to-a-
    multifactor-portfolio readings before concluding the composite adds
    nothing beyond the best island alpha.
-3. **Platform integration (M5)** — composite into dbt marts; Streamlit
-   "GAT vs Baseline" page (now has real content: E6 matrix, E7/E9 seed
-   distributions, E10 attention figures).
+3. **Platform integration (M5)** — ~~composite into dbt marts~~ **DONE**:
+   `persist_gat_outputs` writes 4 tables to DuckDB; dbt models `stg_gat_panel`
+   + `fct_gat_vs_baseline` (tiered A/B) + `fct_gat_scorecard` (one-row gates +
+   attention A/B), built and tested end-to-end (`dbt run`/`test` PASS via the
+   `D:\duckdb` venv). Remaining: Streamlit "GAT vs Baseline" page (E6 matrix,
+   E7/E9 seed distributions, E10 attention figures).
 4. **Paper assembly** — the evidence map (C1-C14) and narrative order are
    ready in the experiment log; limitations list in E5 + static-graph
    lookahead + stationary-attention (E10) + energy-on-synthetic (E11).

@@ -139,6 +139,62 @@ def gate_report(
     }
 
 
+def gat_warehouse_frames(result: dict) -> dict:
+    """Flatten a ``gat_equity_from_panel`` result into warehouse tables for dbt.
+
+    Returns ``{table_name: DataFrame}`` for four tables the dbt models read:
+    ``gat_factor_panel`` (the composite + anchors + island alphas per
+    date/symbol), ``gat_alpha_diagnostics`` (per-alpha OOS metrics, the relational
+    A/B included), ``gat_gate_report`` (the four gates as one row), and
+    ``gat_ab_report`` (attention-vs-uniform-vs-island as one row). Pure pandas,
+    so it is testable without duckdb."""
+    gate, ab = result["gate_report"], result["ab_report"]
+    va, cons, uniq, rob = (gate["value_added"], gate["consistency"],
+                           gate["uniqueness"], gate["robustness"])
+    gate_row = {
+        "composite_oos_ic_mean": gate["composite_oos_ic_mean"],
+        "composite_oos_ic_ir": gate["composite_oos_ic_ir"],
+        "composite_oos_sharpe": va["composite_oos_sharpe"],
+        "best_single_oos_sharpe": va["best_single_oos_sharpe"],
+        "sharpe_value_added": va["sharpe_value_added"],
+        "value_added_passed": va["passed"],
+        "consistency_score": cons["consistency_score"],
+        "consistency_passed": cons["passed"],
+        "max_abs_corr_vs_single": uniq["max_abs_corr_vs_single"],
+        "uniqueness_passed": uniq["passed"],
+        "robustness_score": rob["robustness_score"],
+        "robustness_passed": rob["passed"],
+        "gates_passed": sum(int(g["passed"]) for g in (va, cons, uniq, rob)),
+    }
+    ab_row = {
+        "gat_oos_ic_mean": ab["gat"]["oos_ic_mean"],
+        "gat_oos_sharpe": ab["gat"]["oos_sharpe"],
+        "uniform_oos_ic_mean": ab["uniform_mean"]["oos_ic_mean"],
+        "uniform_oos_sharpe": ab["uniform_mean"]["oos_sharpe"],
+        "island_oos_ic_mean": ab["island_mean"]["oos_ic_mean"],
+        "island_oos_sharpe": ab["island_mean"]["oos_sharpe"],
+        "attention_sharpe_value_add": ab["attention_sharpe_value_add"],
+        "gat_uniform_spearman": ab["gat_uniform_spearman"],
+    }
+    return {
+        "gat_factor_panel": result["panel"],
+        "gat_alpha_diagnostics": result["diagnostics"],
+        "gat_gate_report": pd.DataFrame([gate_row]),
+        "gat_ab_report": pd.DataFrame([ab_row]),
+    }
+
+
+def persist_gat_outputs(result: dict, duckdb_path) -> list[str]:
+    """Write the four ``gat_warehouse_frames`` tables to DuckDB (the dbt source).
+    Requires duckdb; the GAT pipeline itself does not."""
+    from quant_alpha.storage.duckdb import write_table
+
+    frames = gat_warehouse_frames(result)
+    for name, frame in frames.items():
+        write_table(duckdb_path, name, frame)
+    return list(frames)
+
+
 def gat_equity_from_panel(
     panel_flat: pd.DataFrame,
     sectors: dict[str, str],
@@ -256,19 +312,27 @@ def run_gat_equity(
     config_path: Path,
     root: Path,
     offline: bool = True,
+    persist: bool = False,
     **kwargs,
 ) -> dict:
-    """Fetch prices, compute island alphas, then run the GAT relational layer."""
+    """Fetch prices, compute island alphas, then run the GAT relational layer.
+
+    ``persist=True`` writes the four warehouse tables to ``cfg.duckdb_path`` (the
+    dbt ``gat_relational`` source feeding ``fct_gat_vs_baseline`` /
+    ``fct_gat_scorecard``); requires duckdb."""
     from quant_alpha.ingestion.yahoo import fetch_prices
 
     cfg = load_project_config(config_path, root=root)
     universe = load_universe(cfg.universe_path)
     prices = fetch_prices(cfg, universe, offline=offline)
     panel_flat = add_alpha_factors(prices, cfg)
-    return gat_equity_from_panel(
+    result = gat_equity_from_panel(
         panel_flat,
         universe.sectors,
         cfg.backtest,
         out_path=str(cfg.duckdb_path.parent / "gat_equity.pt"),
         **kwargs,
     )
+    if persist:
+        result["persisted_tables"] = persist_gat_outputs(result, cfg.duckdb_path)
+    return result

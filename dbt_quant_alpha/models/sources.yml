@@ -17,3 +17,11 @@ sources:
       - name: alpha_decay
       - name: alpha_turnover
       - name: alpha_walk_forward
+  # GNN/GAT relational-factor capstone outputs (run_gat_equity.persist_gat_outputs)
+  - name: gat_relational
+    schema: main
+    tables:
+      - name: gat_factor_panel
+      - name: gat_alpha_diagnostics
+      - name: gat_gate_report
+      - name: gat_ab_report

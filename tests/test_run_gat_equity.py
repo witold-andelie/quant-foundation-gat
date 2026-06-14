@@ -14,6 +14,7 @@ from quant_alpha.run_gat_equity import (
     ISLAND_MEAN_NAME,
     UNIFORM_NAME,
     gat_equity_from_panel,
+    gat_warehouse_frames,
 )
 
 SECTORS = {
@@ -75,6 +76,17 @@ def test_gat_equity_end_to_end(tmp_path) -> None:
         assert gate in gates
         assert "passed" in gates[gate]
     assert (tmp_path / "gat_equity.pt").exists()
+
+    # the result flattens into the four dbt warehouse tables
+    frames = gat_warehouse_frames(out)
+    assert set(frames) == {
+        "gat_factor_panel", "gat_alpha_diagnostics", "gat_gate_report", "gat_ab_report",
+    }
+    assert COMPOSITE_NAME in frames["gat_factor_panel"].columns
+    assert len(frames["gat_gate_report"]) == 1
+    assert {"gates_passed", "sharpe_value_added"} <= set(frames["gat_gate_report"].columns)
+    assert "attention_sharpe_value_add" in frames["gat_ab_report"].columns
+    assert COMPOSITE_NAME in set(frames["gat_alpha_diagnostics"]["alpha_name"])
 
     # the no-learning anchors ride along through the same diagnostics
     assert out["panel"][ISLAND_MEAN_NAME].notna().sum() > 0

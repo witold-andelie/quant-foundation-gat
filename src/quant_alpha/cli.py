@@ -120,6 +120,7 @@ def gat_equity_command(
     retrain: str = typer.Option("single", help="Fit mode: single or walk-forward."),
     oos_chunk: int = typer.Option(63, help="Walk-forward refit interval in snapshots."),
     device: str = typer.Option("cpu", help="Training device: cpu (default), cuda, or auto."),
+    persist: bool = typer.Option(False, help="Write GAT tables to DuckDB for the dbt marts."),
 ) -> None:
     """Run the equity GAT relational-factor pipeline (requires the [gnn] extra)."""
     from quant_alpha.run_gat_equity import run_gat_equity
@@ -127,7 +128,10 @@ def gat_equity_command(
     out = run_gat_equity(
         config, root.resolve(), offline=offline, epochs=epochs,
         loss=loss, graph=graph, retrain=retrain, oos_chunk=oos_chunk, device=device,
+        persist=persist,
     )
+    if out.get("persisted_tables"):
+        typer.echo(f"Persisted to DuckDB: {out['persisted_tables']}")
     gates = out["gate_report"]
     typer.echo("GAT equity pipeline finished.")
     typer.echo(f"Composite OOS IC mean: {gates['composite_oos_ic_mean']:.4f}")

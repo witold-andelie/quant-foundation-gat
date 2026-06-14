@@ -33,3 +33,25 @@ models:
       - name: consistency_score
         tests:
           - not_null
+
+  - name: fct_gat_vs_baseline
+    description: "Relational A/B — every alpha tagged by tier (relational_gat / relational_unlearned / island_mean / island_single) with OOS metrics, for the GAT-vs-baseline comparison."
+    columns:
+      - name: alpha_name
+        tests:
+          - not_null
+      - name: tier
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['relational_gat', 'relational_unlearned', 'island_mean', 'island_single']
+
+  - name: fct_gat_scorecard
+    description: "One-row GAT composite scorecard: four gates, value-add over best single, and the attention A/B vs uniform/island anchors."
+    columns:
+      - name: gates_passed
+        tests:
+          - not_null
+      - name: attention_sharpe_value_add
+        tests:
+          - not_null
