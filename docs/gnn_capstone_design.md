@@ -4,14 +4,17 @@
 > existing `semester_plan.md` for the capstone scope. Implementation
 > milestones in §8.
 >
-> **Implementation status (2026-06-10):** equity track M1+M2 complete and
-> M3 first pass done on real data (3/4 gates pass; Value-added open) — see
-> `gat_experiment_log.md` for the canonical experiment record and
-> `CAPSTONE_STATUS.md` for the resume point. Scope narrowed to
-> equity-first per ADR-0004 (energy deferred); the implemented module
-> layout differs from §4 (it follows the ADR-0001/0002 seams:
-> `graph/propagate.py`, `graph/training.py`, `graph/edges_equity.py`,
-> `features/factor.py`, `models/gat.py`, `run_gat_equity.py`).
+> **Implementation status (2026-06-11):** **now dual-track** (ADR-0006
+> supersedes the equity-first deferral). Equity: M1-M4 done on real data
+> (3/4 gates, walk-forward significant, attention analysed). Energy: the
+> physical interconnector graph (`edges_energy`, ~20 zones), floored hourly
+> label, and `run_gat_energy` are built and tested, sharing the equity GAT
+> kernel verbatim — the "one kernel, two graphs" thesis is literal in code.
+> See `gat_experiment_log.md` (E1-E11) for the record and `CAPSTONE_STATUS.md`
+> for the resume point. The implemented module layout follows the
+> ADR-0001/0002 seams: `graph/{propagate,training,edges_equity,edges_energy,
+> attention}.py`, `features/factor.py`, `models/gat.py`,
+> `run_gat_{equity,energy}.py`.
 
 ## 1. Thesis — "From Island Alphas to Relational Alphas"
 

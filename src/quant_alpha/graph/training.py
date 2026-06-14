@@ -47,6 +47,38 @@ def cross_sectional_label(
     return (fwd - grouped.transform("mean")) / std
 
 
+def energy_cross_sectional_label(
+    panel: pd.DataFrame,
+    k: int,
+    price_col: str = "spot_price",
+    floor: float = 20.0,
+    clip: float = 0.8,
+    method: str = "zscore",
+) -> pd.Series:
+    """Hourly power-price forward-return label, cross-sectionally standardised.
+
+    Equity's price-ratio label is wrong for power: spot prices go negative and
+    near-zero, so ``price[t+k]/price[t]-1`` explodes (ADR-0004). The energy
+    label is a floored relative change — ``(price[t+k]-price[t]) /
+    clip(|price[t]|, floor)``, clipped to ``[-clip, clip]`` — matching the
+    existing energy pipeline's `forward_return`, then z-scored (or ranked) per
+    timestamp. ``k`` is in hours. LABEL ONLY: uses ``t+k`` prices; the last k
+    snapshots per market are NaN and excluded.
+    """
+    if method not in ("zscore", "rank"):
+        raise ValueError(f"method must be 'zscore' or 'rank', got {method!r}")
+    panel = panel.sort_index()
+    cur = panel[price_col]
+    fwd = panel.groupby(level=1)[price_col].transform(lambda s: s.shift(-k))
+    raw = ((fwd - cur) / cur.abs().clip(lower=floor)).clip(-clip, clip)
+
+    if method == "rank":
+        return raw.groupby(level=0).rank(pct=True) - 0.5
+    grouped = raw.groupby(level=0)
+    std = grouped.transform("std").replace(0, np.nan)
+    return (raw - grouped.transform("mean")) / std
+
+
 def cross_sectional_median_fill(
     panel: pd.DataFrame, cols: tuple[str, ...]
 ) -> pd.DataFrame:

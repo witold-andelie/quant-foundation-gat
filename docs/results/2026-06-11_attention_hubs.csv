@@ -1,0 +1,51 @@
+symbol,hub_score,sector
+AMZN,1.5578794,Consumer Discretionary
+NFLX,1.4939339,Communication Services
+AVGO,1.4587272,Information Technology
+GS,1.3113153,Financials
+CAT,1.2951483,Industrials
+NVDA,1.2177355,Information Technology
+MSFT,1.153732,Information Technology
+LIN,1.1450139,Materials
+META,1.1143707,Communication Services
+AAPL,1.1046704,Information Technology
+CRM,1.0775977,Information Technology
+BA,1.0698421,Industrials
+MS,1.046505,Financials
+FCX,1.0448569,Materials
+DIS,1.0271683,Communication Services
+GE,1.0145161,Industrials
+GOOGL,1.0132139,Communication Services
+KO,0.9958583,Consumer Staples
+NEM,0.9920597,Materials
+LLY,0.9583544,Health Care
+TSLA,0.91625994,Consumer Discretionary
+COST,0.9131935,Consumer Staples
+PLD,0.9025058,Real Estate
+MRK,0.887055,Health Care
+JNJ,0.8789632,Health Care
+UNH,0.8577858,Health Care
+HD,0.8372902,Consumer Discretionary
+NKE,0.83129853,Consumer Discretionary
+XOM,0.8307426,Energy
+NEE,0.8196354,Utilities
+MCD,0.8150078,Consumer Discretionary
+PEP,0.8089164,Consumer Staples
+CVX,0.79534614,Energy
+TMUS,0.7915632,Communication Services
+HON,0.78463817,Industrials
+SLB,0.74690217,Energy
+WMT,0.7395819,Consumer Staples
+ABBV,0.7341873,Health Care
+AMT,0.72206426,Real Estate
+DUK,0.7140012,Utilities
+UPS,0.6937322,Industrials
+PG,0.6913019,Consumer Staples
+PFE,0.67408174,Health Care
+JPM,0.6447037,Financials
+COP,0.6441054,Energy
+EOG,0.6425346,Energy
+WFC,0.62805116,Financials
+SO,0.6077174,Utilities
+ORCL,0.6032929,Information Technology
+BAC,0.5277929,Financials

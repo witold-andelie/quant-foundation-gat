@@ -9,13 +9,16 @@ _Last updated: 2026-06-10._
 
 ## Status in one line
 
-The equity end-to-end axis is **closed, tested, ablated, seed-qualified, and
-HP-tuned on real data** (experiments E1-E9, all in
-`docs/gat_experiment_log.md`): alpha panel -> graph (static default; dynamic
-available, rejected by ablation) -> GAT training (IC loss default; single or
-walk-forward refits) -> composite + no-learning anchors -> four research
-gates + attention A/B, runnable via `quant-alpha gat-equity`. **35
-new-module tests passing.** Split hygiene locked (ADR-0003 amendment);
+**Now dual-track (ADR-0006).** The equity axis is closed, tested, ablated,
+seed-qualified, HP-tuned, and attention-analysed on real data (E1-E10); the
+energy axis is built and tested on the same GAT kernel — physical
+interconnector graph (20 zones) + hourly label + bidding-zone nodes
+(`run_gat_energy`, E11). Flow per track: panel -> graph -> GAT training (IC
+loss; single or walk-forward) -> composite + no-learning anchors -> four
+gates + attention A/B. **54 new-module tests passing; no `NotImplementedError`
+left in `src/`.** Equity has real-data value (3/4 gates, attention 20/20
+positive); energy on synthetic data is a clean negative control (no false
+positives, C12), its value claim pending real ENTSO-E data. Split hygiene locked (ADR-0003 amendment);
 leakage controls automated; HP selection used valid IC only and transferred
 to OOS in the walk-forward arm (E9/E9b, device-deconfounded). Headline:
 **attention value-add over the uniform anchor is positive in 30/30 seeded
@@ -35,31 +38,40 @@ is significant in this config (IC t~3.9). Value-added (vs best single,
 - **0003** — GAT training objective: cross-sectionally standardised
   `forward_return(t+k)` label; MSE first, then IC loss; walk-forward + embargo
   (>= k); leakage-critical code is pure pandas + tested.
-- **0004** — scope: equity end-to-end first; energy is documented extension + stubs.
+- **0004** — scope: equity end-to-end first; energy deferred (superseded by 0006:
+  dual-track as of 2026-06-11; energy island alphas wired, relational built).
 - **0005** — equity graph: correlation top-k backbone + optional sector boost +
   `min_degree` fallback; node features = `_rank` alphas, cross-sectional median
   fill; label k in days; universe expanded to ~50 names with GICS sectors.
+- **0006** — energy graph: physical interconnector topology (~20 European
+  bidding zones) + correlation weights; floored hourly label (k in hours);
+  one shared GAT kernel, two heterogeneous graphs.
 
 ## New modules (all under src/quant_alpha/, English comments)
 
 | File | Role |
 |---|---|
 | `graph/propagate.py` | `Propagator` seam; `UniformMeanPropagator` (baseline, A/B anchor); `GATPropagator` (wraps trained GATModel, torch lazy; `last_attention` exposes head-layer softmax for M4) |
-| `graph/training.py` | torch-free leakage primitives: `cross_sectional_label`, `cross_sectional_median_fill`, `walk_forward_splits` (embargo), `is_constrained_split` (valid inside IS), `rank_ic` |
+| `graph/training.py` | torch-free leakage primitives: `cross_sectional_label`, `energy_cross_sectional_label` (floored hourly return), `cross_sectional_median_fill`, `walk_forward_splits` (embargo), `is_constrained_split` (valid inside IS), `rank_ic` |
 | `graph/edges_equity.py` | `build_equity_topology` (corr top-k + sector + min_degree, leak-safe), `static_topology_for`, `rolling_topology_for` (dynamic, point-in-time) |
-| `features/factor.py` | unified `Factor`, `FactorProvider`, `apply_factors`, `propagate_over_panel`; `ExpressionFactorProvider`, `GraphFactorProvider`, `LegacyEnergyProvider` (stub) |
-| `models/gat.py` | torch zone (needs `[gnn]`): `GATModel` (+`forward_with_attention`), `GATConfig`, `CrossSection`, `FactorGraphDataset`, `build_sections`, `fit`, `composite_series`, `walk_forward_composite_series`, `predict_panel`, losses, `time_ordered_split` |
-| `run_gat_equity.py` | the main axis: `gat_equity_from_panel` (orchestration; `loss`/`graph`/`retrain` switches), `run_gat_equity` (CLI wrapper), `gate_report` (four gates), `ab_report` + `_baseline_columns` (attention A/B anchors) |
+| `graph/edges_energy.py` | physical interconnector graph: `EUROPEAN_INTERCONNECTORS` (~20 zones), `build_energy_topology` (physical edges + corr weights, leak-safe), `static_energy_topology_for`, `rolling_energy_topology_for` |
+| `graph/attention.py` | torch-free M4 analysis over the tidy attention frame: `self_attention_over_time`, `sector_homophily_over_time`, `attention_concentration_over_time`, `hub_scores`, `attention_matrix` |
+| `features/factor.py` | unified `Factor`, `FactorProvider`, `apply_factors`, `propagate_over_panel`; `ExpressionFactorProvider`, `GraphFactorProvider`, `LegacyEnergyProvider` (wraps the 8 imperative energy alphas as Factors, memoised — no stubs left) |
+| `models/gat.py` | torch zone (needs `[gnn]`): `GATModel` (+`forward_with_attention`), `GATConfig`, `CrossSection`, `FactorGraphDataset`, `build_sections` (+`label_fn` hook), `fit`, `composite_series`, `walk_forward_composite_series`, `attention_panel`, `predict_panel`, losses, `time_ordered_split` |
+| `run_gat_equity.py` | equity axis: `gat_equity_from_panel` (orchestration; `loss`/`graph`/`retrain` switches), `run_gat_equity` (CLI wrapper), `gate_report` (four gates), `ab_report` + `_baseline_columns` (attention A/B anchors — reused by energy) |
+| `run_gat_energy.py` | energy axis (dual-track): `gat_energy_from_panel`, `run_gat_energy` — same kernel, physical interconnector graph + hourly label + bidding-zone nodes |
 
 Config: `Universe.sectors` added (`config.py`); `configs/universe.yaml` = 50 names
 + sectors; `[gnn]` extra in `pyproject.toml` (torch, torch-geometric).
 
 ## Tests (tests/, run with the env note below)
 
-`test_graph_propagate.py` (3) · `test_factor_provider.py` (4) · `test_training.py`
-(6) · `test_edges_equity.py` (9) · `test_gat.py` (7) · `test_run_gat_equity.py` (2)
-· `test_leakage.py` (4, shuffle + planted-signal controls x both losses)
-= **35 passing** (torch tests `importorskip`, run here because torch is installed).
+`test_graph_propagate.py` (3) · `test_factor_provider.py` (7, incl. energy shim
+faithfulness + memoise) · `test_training.py` (8, incl. energy label) ·
+`test_edges_equity.py` (9) · `test_edges_energy.py` (5, interconnector graph)
+· `test_gat.py` (7) · `test_run_gat_equity.py` (2) · `test_run_gat_energy.py` (2)
+· `test_leakage.py` (4) · `test_attention.py` (7)
+= **54 passing** (torch tests `importorskip`, run here because torch is installed).
 
 ## How to run / resume
 
@@ -122,31 +134,31 @@ IC loss default (E4) · first real-data run (E5) · 2x2 graph-x-retraining
 ablation with A/B anchors (E6) · seed sensitivity (E7) · GPU benchmark —
 negative, CPU stays (E8) · HP grid by valid IC + OOS winner validation (E9)
 · attention plumbing (`last_attention`) · split hygiene + automated leakage
-controls (E2/E3).
+controls (E2/E3) · attention qualitative analysis (E10/M4) · **energy
+relational track (E11): physical interconnector graph + hourly label +
+`run_gat_energy`, dual-track on the shared kernel, 54 tests, synthetic
+negative control clean.**
 
 Remaining, in order:
 
-1. **Attention story (M4)** — the qualitative analysis on real data (which
-   sectors/names attend to whom over time; regime shifts at fold
-   boundaries), using the tested `GATPropagator.last_attention` hook. The
-   paper's narrative centrepiece.
+1. **Real ENTSO-E energy data** — the energy track is built and validated as a
+   negative control on synthetic data; its *value* claim needs real coupled
+   power prices (the physical-interconnector story). Needs an ENTSO-E API
+   token (`pipeline_energy` source=`entsoe`) + bidding-zone EIC codes for the
+   ~20 zones. Same posture equity was in before its real-data run.
 2. **Value-added gate variants** — the strict max-of-singles bar (3.07) is
    the one open gate; add mean-of-singles and marginal-contribution-to-a-
    multifactor-portfolio readings before concluding the composite adds
    nothing beyond the best island alpha.
-3. ~~WF-vs-single significance~~ — **reached in the tuned config** (E9b
-   same-device: IC t~3.9, Sharpe t~2.4, n=5/arm; three paired comparisons
-   all favour WF). Optional hardening: more seeds for a tighter interval.
-4. **Platform integration (M5)** — composite into dbt marts; Streamlit
+3. **Platform integration (M5)** — composite into dbt marts; Streamlit
    "GAT vs Baseline" page (now has real content: E6 matrix, E7/E9 seed
-   distributions, attention heatmaps).
-5. **Paper assembly** — the evidence map (C1-C10) and narrative order are
+   distributions, E10 attention figures).
+4. **Paper assembly** — the evidence map (C1-C12) and narrative order are
    ready in the experiment log; limitations list in E5 + static-graph
-   lookahead note. Data-source upgrade (survivorship-bias-free vendor) if
-   time permits.
-6. Energy track (ADR-0004 deferred): hourly-return label variant,
-   bidding-zone expansion, `edges_energy` interconnector topology — confirm
-   scope with the advisor before investing.
+   lookahead + stationary-attention (E10) + energy-on-synthetic (E11).
+   Data-source upgrade (survivorship-bias-free vendor) if time permits.
+5. **WF-vs-single hardening** (optional) — already significant in the tuned
+   config (E9b); more seeds only tighten the interval.
 
 ## Timeline (proposed to advisor)
 

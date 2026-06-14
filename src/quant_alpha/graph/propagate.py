@@ -151,18 +151,7 @@ class GATPropagator:
 
     @staticmethod
     def _attention_frame(att_edges, alpha, nodes: list) -> pd.DataFrame:
-        """``(src, dst, weight)`` rows for the head layer's attention, averaged
-        over heads. Includes the self-loops PyG adds, so per-``dst`` weights
-        sum to 1 (softmax over each node's in-neighbourhood)."""
-        src_idx, dst_idx = att_edges.cpu().numpy()
-        weight = alpha.mean(dim=-1).cpu().numpy()
-        return pd.DataFrame(
-            {
-                "src": [nodes[i] for i in src_idx],
-                "dst": [nodes[i] for i in dst_idx],
-                "weight": weight,
-            }
-        )
+        return tidy_attention_frame(att_edges, alpha, nodes)
 
     def last_attention(self) -> pd.DataFrame:
         """Per-edge attention of the composite-emitting layer from the most
@@ -171,3 +160,24 @@ class GATPropagator:
         if self._last_attention is None:
             raise RuntimeError("No attention recorded yet — call propagate() first.")
         return self._last_attention
+
+
+def tidy_attention_frame(att_edges, alpha, nodes: list) -> pd.DataFrame:
+    """``(src, dst, weight)`` rows for one snapshot's head-layer attention.
+
+    ``att_edges``/``alpha`` are PyG's ``return_attention_weights`` pair for the
+    composite-emitting layer: ``att_edges`` is ``[2, E]`` (including the
+    self-loops PyG adds), ``alpha`` is ``[E, heads]`` (head layer is 1-head,
+    but we mean over heads to stay general). Weights into each ``dst`` are a
+    softmax over that node's in-neighbourhood, so they sum to 1. Torch is not
+    imported here — the tensors are only read via ``.cpu().numpy()``, keeping
+    this module importable without the ``[gnn]`` extra."""
+    src_idx, dst_idx = att_edges.cpu().numpy()
+    weight = alpha.mean(dim=-1).cpu().numpy()
+    return pd.DataFrame(
+        {
+            "src": [nodes[i] for i in src_idx],
+            "dst": [nodes[i] for i in dst_idx],
+            "weight": weight,
+        }
+    )

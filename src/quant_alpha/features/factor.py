@@ -166,7 +166,42 @@ class LegacyEnergyProvider:
     """
 
     def factors(self) -> list[Factor]:
-        raise NotImplementedError(
-            "Energy-pipeline wiring task: run add_energy_alpha_features once per "
-            "panel (memoised), expose each of the 8 columns as a Factor.compute."
+        from quant_alpha.features.energy_alpha import (
+            ENERGY_ALPHA_REGISTRY,
+            add_energy_alpha_features,
         )
+
+        # One enrichment per panel, shared by all 8 Factors: apply_factors calls
+        # every compute with the same panel object in one loop, so keying on
+        # id(panel) (and keeping only the latest) runs the imperative function
+        # once instead of eight times.
+        cache: dict[int, pd.DataFrame] = {}
+
+        def enriched(panel: pd.DataFrame) -> pd.DataFrame:
+            key = id(panel)
+            if key not in cache:
+                names = list(panel.index.names)  # canonical (timestamp, market)
+                computed = add_energy_alpha_features(panel.reset_index())
+                cache.clear()
+                cache[key] = computed.set_index(names)
+            return cache[key]
+
+        def make_compute(col: str) -> FactorFn:
+            def compute(panel: pd.DataFrame) -> pd.Series:
+                return enriched(panel)[col].reindex(panel.index)
+
+            return compute
+
+        # The energy expressions already bake in their sign (the -zscore alphas),
+        # so each factor value is positively aligned with forward return.
+        return [
+            Factor(
+                name=alpha.name,
+                family=alpha.family,
+                hypothesis=alpha.hypothesis,
+                expected_direction=1,
+                compute=make_compute(alpha.name),
+                expression=alpha.expression,
+            )
+            for alpha in ENERGY_ALPHA_REGISTRY
+        ]

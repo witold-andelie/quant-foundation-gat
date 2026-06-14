@@ -6,10 +6,10 @@ Long-form documentation for Quant Alpha Foundation. For module-level READMEs see
 
 | Document | Audience | Description |
 |---|---|---|
-| [gat_experiment_log.md](gat_experiment_log.md) | Researchers / paper | **Canonical GAT experiment record** — setup, leakage controls, real-data four-gate results, limitations, next experiments. Primary source for the capstone paper's results section |
-| [gnn_capstone_design.md](gnn_capstone_design.md) | All | GNN relational-factor capstone architecture design (thesis, two-track graphs, milestones M1–M5) |
-| [CAPSTONE_STATUS.md](CAPSTONE_STATUS.md) | Agents / resume | Progress snapshot and resume point for the GAT capstone — module map, test counts, environment quirks, prioritised next steps |
-| [adr/](adr/) | All | Architecture decision records 0001–0005 (propagate seam, factor provider, training objective + split hygiene, scope, equity graph) |
+| [gat_experiment_log.md](gat_experiment_log.md) | Researchers / paper | **Canonical dual-track GAT experiment record (PRIMARY paper source)** — evaluation framework (four-gate definitions + thresholds, A/B anchors, split protocol, labels), headline results table, evidence map (C1–C12), consolidated limitations, reproducibility, and chronological entries E1–E11 (equity real data + energy synthetic) |
+| [gnn_capstone_design.md](gnn_capstone_design.md) | All | GNN relational-factor capstone architecture design (thesis, two-track graphs, milestones M1–M5); dual-track implementation banner up top |
+| [CAPSTONE_STATUS.md](CAPSTONE_STATUS.md) | Agents / resume | Progress snapshot and resume point — module map (both tracks), test counts, environment quirks, prioritised next steps |
+| [adr/](adr/) | All | Architecture decision records 0001–0006 (propagate seam, factor provider, training objective + split hygiene, equity-first→dual-track scope, equity correlation graph, energy interconnector graph) |
 | [alpha_research.md](alpha_research.md) | Researchers | Alpha factor methodology, full 18-factor catalog (10 equity + 8 energy), four-gate validation framework (Robustness / Uniqueness / Value-added / Consistency), worked examples |
 | [architecture.md](architecture.md) | Engineers | System layers (ingestion → warehouse → factor engine → backtest → dashboard), production boundary, data flow diagram |
 | [cloud_kubernetes.md](cloud_kubernetes.md) | DevOps | GCP deployment guide — Terraform IaC (Workload Identity, Secret Manager, BigQuery 3-layer), GKE cluster setup, Helm chart deployment, dev/prod overlays |

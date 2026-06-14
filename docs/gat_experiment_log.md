@@ -1,12 +1,101 @@
 # GAT Relational Factor — Experiment Log (paper reference)
 
-The canonical record of every GAT-equity experiment: setup, integrity
-controls, numbers, and interpretation. This is the primary source for the
-capstone paper's results section. Companion docs: design rationale in
-`gnn_capstone_design.md`, decisions in `adr/`, resume point in
-`CAPSTONE_STATUS.md`.
+The canonical record of every GAT relational-factor experiment across **both
+tracks** (equity correlation graph + energy interconnector graph): setup,
+integrity controls, numbers, and interpretation. This is the primary source
+for the capstone paper's methods and results sections. Companion docs: design
+rationale in `gnn_capstone_design.md`, decisions in `adr/0001`-`0006`, resume
+point in `CAPSTONE_STATUS.md`, domain glossary in `CONTEXT.md`.
 
-_Maintained chronologically; never rewrite an entry — append corrections._
+_Maintained chronologically; never rewrite an entry — append corrections so the
+self-correction trail (e.g. E9 → E9b device deconfound) stays auditable, which
+is itself a credibility asset for the paper._
+
+**Contents:** evaluation framework (methods) · headline results (summary table)
+· paper evidence map (C1-C12) · narrative order · consolidated limitations ·
+reproducibility · chronological entries E1-E11.
+
+---
+
+## Evaluation framework (methods reference)
+
+The fixed measurement apparatus every experiment runs through. Defined once
+here so the paper's methods section is a single lift.
+
+**Canonical panel.** `(time, entity)` MultiIndex — `(date, symbol)` for equity,
+`(timestamp, market)` for energy. Node features are the existing alphas'
+cross-sectional `_rank` columns (10 equity / 8 energy), median-filled per
+snapshot (the no-information position in rank space).
+
+**Label (supervision only, never a feature).** Forward return at horizon `k`,
+cross-sectionally standardised per snapshot.
+- Equity: `price[t+k]/price[t] - 1`, z-scored; `k` in **days** (k=5).
+- Energy: `(price[t+k]-price[t]) / clip(|price[t]|, 20)`, clipped to ±0.8,
+  z-scored; `k` in **hours** (k=24). The floor is required because power prices
+  go negative/near-zero (ADR-0004/0006).
+
+**Split protocol (leakage-safe).** One IS/OOS split date at 70% of timestamps,
+the single source of truth for graph construction (`as_of`), model selection,
+and gate evaluation. Layout over snapshot indices:
+`train | embargo(k) | valid | embargo(k) | OOS`. Valid sits inside IS with an
+embargo on both sides, so best-epoch selection never sees the OOS window
+(`graph.training.is_constrained_split`, asserted). The graph is built from data
+strictly before `as_of` (asserted in the builders).
+
+**Training.** Stacked GAT (PyG `GATConv`), 2 layers, IC loss
+(`-Pearson(pred, label)` per snapshot; MSE retained for A/B), best-by-valid-IC
+epoch checkpointing. `single` = one fit on IS; `walk_forward` = refit every
+`oos_chunk` snapshots through OOS on all data predating each boundary (same
+embargoed split per fold). CPU (E8: GPU slower at this graph size).
+
+**The four research gates** (`run_gat_equity.gate_report`), composite vs the 10
+(or 8) single alphas, all on the OOS slice:
+| Gate | Definition | Pass threshold |
+|---|---|---|
+| Value-added | composite OOS Sharpe vs the **max** single-alpha OOS Sharpe | composite > best single |
+| Consistency | IS and OOS IC same sign + magnitude retention (`consistency_score`) | score ≥ 0.5 |
+| Uniqueness | max abs Spearman corr of composite vs each single | < 0.7 |
+| Robustness | OOS observations + IC IR + drawdown blend (`robustness_score`) | score ≥ 0.5 |
+
+Value-added's "beat the max of N singles" is deliberately the strictest bar;
+the paper also reports beat-rate (e.g. "beats 9 of 10").
+
+**The attention A/B (the core thesis test).** Two no-learning anchors carried
+in every run, same inputs and same topology as the GAT:
+- `alpha_island_mean` — equal-weight composite of the input alphas, **no
+  propagation** (the island baseline).
+- `alpha_uniform_composite` — `UniformMeanPropagator` averaging that composite
+  over the GAT's topology (**relational but unlearned**).
+`attention_sharpe_value_add` = GAT OOS Sharpe − uniform-anchor OOS Sharpe
+isolates what *learned attention* adds over naive neighbour averaging.
+
+---
+
+## Headline results (summary)
+
+One table for the paper's results section. Equity is real yfinance data
+(2021-01→2026-06, 49-50 US names); energy is synthetic power data (ENTSO-E
+token-gated). All multi-seed numbers are mean ± std over 5 seeds, CPU.
+
+| Track / config | OOS IC | OOS Sharpe | Attention value-add | Gates (V/C/U/R) | Source |
+|---|---|---|---|---|---|
+| **Equity, winner + walk-forward** (best) | **0.0148 ± 0.0043** | **1.37 ± 0.39** | **2.42 ± 0.39** | F/T/T/T | E9b |
+| Equity, winner + single | -0.0004 ± 0.0077 | 0.80 ± 0.35 | 1.86 ± 0.35 | mixed | E9b |
+| Equity, default + walk-forward | 0.0055 ± 0.0147 | 1.15 ± 0.75 | 2.20 ± 0.75 | F/T/T/T | E7 |
+| Equity, default + single | -0.0009 ± 0.0045 | 0.73 ± 0.25 | 1.78 ± 0.25 | F/F/T/T | E7 |
+| Equity, first real run (1 seed) | 0.0066 | 1.42 | n/a | F/T/T/T | E5 |
+| Energy, winner + walk-forward (synthetic) | -0.011 | -1.11 | -0.59 | F/F/T/T | E11 |
+| Energy, winner + single (synthetic) | -0.009 | -1.26 | -0.74 | F/F/T/T | E11 |
+
+Reference points: best single equity alpha (`alpha_wq_010_gap_quality`) OOS
+Sharpe ≈ 2.9-3.1; **attention value-add positive in 30/30 equity seeded runs**;
+energy attention value-add negative on synthetic (correct null). Equity passes
+3/4 gates (Value-added open); energy passes 2/4 (negative control).
+
+Headline reading: **learned attention reliably beats unlearned relational
+propagation (the core thesis), the composite is a real/unique/consistent signal
+that does not yet beat the single best alpha, and the same kernel generalises
+to a physically different graph without manufacturing false positives.**
 
 ---
 
@@ -28,13 +117,68 @@ here is not yet supported.
 | C8 | Single-seed point estimates are not paper-grade: across 5 seeds OOS Sharpe spans 0.36-1.04 (single) and 0.13-1.95 (WF); same seed on a different device also diverges (E8). All headline numbers are reported as mean +/- std over >= 5 seeds; the long-short Sharpe is far more seed-stable in sign than the rank-IC | E7, E8 | `2026-06-10_seed_sensitivity.csv` |
 | C9 | **The evaluation protocol is self-validating, with nuance**: HPs selected purely on the IS-internal valid IC transferred to OOS in the walk-forward arm (same-device: IC 0.0148 +/- 0.0043 vs default's 0.0055 +/- 0.0147 — 2.7x mean, 1/3 variance) but not in the single arm (a wash). Model selection never touched the OOS window. The initial both-arms read was a device artifact, caught and corrected (E9 correction) | E9 + E9b | `2026-06-10_hp_grid_valid_ic.csv` + `..._winner_validation_{gpu,cpu}.csv` |
 | C10 | The HP surface is flat near the top (six configs within 0.10-0.115 valid IC); the only structural requirement is **2 GAT layers** (all top-6). Results are robust to reasonable HP choices — a robustness point, and a caution against HP-tuning theatre | E9 grid | `2026-06-10_hp_grid_valid_ic.csv` |
+| C11 | **Attention is interpretable and mechanistically explains the result**: 91.6% on neighbours (not self-collapse), but near-uniform across ~12.5 neighbours (entropy 0.96, sector lift +0.019) — a gentle reweighting of mean pooling, which is *why* the edge over the uniform anchor is real but modest (C3). Hubs are economically sensible mega-caps/bellwethers. The structure is temporally stationary, so the "regime-adaptive" framing is **not** supported at the aggregate level | E10 | `2026-06-11_attention_*.csv`, `figures/` |
+| C12 | **One kernel, two heterogeneous graphs (dual-track)**: a physical interconnector graph (20 bidding zones, hourly label) runs through the *same* GAT model, section builder, four gates, and A/B as the equity correlation graph — only graph/label/nodes differ. On synthetic energy the pipeline correctly finds no edge and attention value-add is *negative* (no false positives on a second graph type, C1); the energy value claim awaits real ENTSO-E data | E11 | `2026-06-11_energy_*.csv/json`, ADR-0006 |
 
 **Suggested paper narrative order** (each step cites the rows above):
 methods & seams (ADRs) -> evaluation protocol & leakage controls (C1, C7) ->
 training objective (C2) -> main A/B result (C3) -> gates & honest reading
-(C4, C5) -> ablation & negative results (C6) -> robustness & variance (C8)
--> limitations (E5 list + static-graph in-sample lookahead) -> future work
-(gate variants, attention story, energy track).
+(C4, C5) -> ablation & negative results (C6) -> robustness & variance
+(C8, C9, C10) -> attention interpretability & mechanism (C11) -> dual-track
+generalisation: one kernel, two graphs (C12) -> limitations -> future work.
+
+---
+
+## Consolidated limitations (state these in the paper)
+
+Honesty is the paper's credibility strategy; every item below is a deliberate
+scope choice, not an oversight, and several are themselves results.
+
+1. **Value-added gate not passed** — the relational composite does not beat the
+   single best island alpha (OOS Sharpe ~1.4 vs ~3.0). It beats 9 of 10 and is
+   the second-best signal, but the strict max-of-singles bar is open (C5).
+2. **Static-graph in-sample lookahead (mild)** — the static equity graph is
+   built from correlations up to the split date, giving early *training*
+   snapshots a mild lookahead. OOS cleanliness is unaffected (the graph
+   precedes the OOS window); the dynamic graph removes it but was rejected on
+   performance (C6). Disclose, don't hide.
+3. **Attention is near-uniform / not regime-adaptive at the aggregate level**
+   (E10/C11) — the value comes from small tilts on broad pooling, and the
+   coarse attention structure is temporally stationary, contradicting the
+   original "macro-regime-adaptive" hypothesis. Reported as a finding.
+4. **Energy value claim unvalidated** — energy runs on synthetic power data
+   (ENTSO-E token-gated); it is a clean negative control (C12), not a value
+   demonstration. The physical-interconnector story needs real coupled prices.
+5. **Walk-forward significance is config-local** — significant in the tuned
+   config (E9b, t~3.9) and directionally consistent across three paired
+   comparisons, but n=5 per arm; not a large-sample claim.
+6. **Universe and data vintage** — equity is ~50 hand-picked current US large
+   caps via yfinance (survivorship bias inflates absolute Sharpe levels, though
+   not the *relative* A/B); single ~5.5y window; daily bars. No
+   survivorship-bias-free vendor.
+7. **Reproducibility is distributional, not bit-exact** — same seed diverges
+   across devices (E8); claims hold as mean ± std over seeds on a fixed
+   device/torch version, not as exact point estimates.
+
+## Reproducibility
+
+- **Environment.** Python 3.13 (`py` launcher); `torch 2.12.0+cu126` +
+  `torch_geometric` (`[gnn]` extra); paper runs on **CPU** (E8). `PYTHONPATH=src`.
+  Equity needs `yfinance`; energy uses the synthetic generator (ENTSO-E optional).
+- **Tests.** 54 new-module tests (`tests/test_{gat,training,edges_equity,
+  edges_energy,graph_propagate,factor_provider,run_gat_equity,run_gat_energy,
+  leakage,attention}.py`); leakage controls pinned to CPU for determinism.
+- **Run scripts** (in `.scratch/`, archived outputs in `docs/results/`):
+  `run_real.py` (E5), `run_matrix.py` (E6), `run_seeds.py` (E7),
+  `bench_gpu.py` (E8), `run_hp_grid.py`+`run_winner.py` (E9/E9b),
+  `run_attention.py` (E10), `run_energy.py` (E11).
+- **Artifacts** (`docs/results/`, date-prefixed): per-run diagnostics CSVs,
+  matrix/seed/HP/winner/energy summaries (CSV+JSON), attention time-series CSVs
+  + five figures under `figures/`. Representative model weights are gitignored
+  (transient); the canonical `data/warehouse/gat_equity.pt` is tracked.
+- **CLI.** `quant-alpha gat-equity --graph {static,dynamic} --retrain
+  {single,walk-forward} --loss {ic,mse} --device {cpu,cuda,auto}`;
+  energy via `run_gat_energy` (synthetic by default).
 
 ---
 
@@ -461,6 +605,109 @@ Deconfounded findings (these supersede finding 1 above):
 
 ---
 
+## E10 — Attention qualitative analysis, M4 (2026-06-11)
+
+**Setup.** One representative model (static graph, IC loss, winner HPs:
+lr=3e-3/hidden=64/heads=2/layers=2, single fit, CPU, seed 0) on the E6
+panel; head-layer attention extracted for every snapshot
+(`models.gat.attention_panel` -> 919,336 edge-rows over 1,364 dates), four
+readings in the torch-free `graph/attention.py`. Script
+`.scratch/run_attention.py`; OOS-window numbers below; CSVs
+`docs/results/2026-06-11_attention_*.csv`; figures in `docs/results/figures/`.
+
+**Findings.**
+
+1. **Attention is genuinely relational, not self-collapse.** Mean self-loop
+   weight is **0.084** — the GAT places **91.6% of attention on neighbours**.
+   Combined with C3 (it beats the uniform anchor), this rules out the trivial
+   failure mode where attention degenerates to reading each node's own
+   features. The relational claim is not just "better metric", it is "looks
+   at the graph".
+
+2. **But it is a gentle reweighting of broad pooling, not sharp selection.**
+   Across ~12.5 neighbours/node the neighbour distribution is near-uniform:
+   normalised entropy **0.956**, top-1 share **0.152** (uniform would be
+   1/12.5 = 0.08), sector-homophily lift only **+0.019** (weighted same-sector
+   0.330 vs structural 0.311). So the GAT applies small, smart tilts on top of
+   near-mean-pooling. **This explains E6's modest-but-real margin**: the value
+   is in subtle deviations from uniform, which is also why the composite is
+   near-uncorrelated with — yet better than — the uniform anchor.
+
+3. **The attention *structure* is temporally stationary** (figures
+   `attention_neighbour_weight.png`, `attention_homophily_lift.png`): the
+   self/neighbour split holds at ~0.91-0.92 and the homophily lift stays in
+   +0.01..0.03 (almost never negative) across 2021-2026, with no visible
+   break at the IS/OOS boundary. **This does not support the design doc's
+   "macro-regime-adaptive" framing at the aggregate level** — adaptation lives
+   in the per-name weights within a stable coarse structure, not in the coarse
+   structure itself. Honest correction of the original M4 hypothesis.
+
+4. **Information hubs are economically sensible.** Top incoming-attention
+   names: AMZN, NFLX, AVGO, GS, CAT, NVDA, MSFT, LIN — mega-cap tech plus
+   sector bellwethers (GS financials, CAT industrials, LIN materials), i.e.
+   the names the rest of the universe co-moves with. A qualitative validity
+   check the attention passes.
+
+**Paper use.** Findings 1+2 are the mechanism behind C3 (why attention beats
+uniform, and by how little); finding 3 is an honest limitation that replaces
+an over-strong design hypothesis; finding 4 is the figure-friendly
+"interpretable attention" story. Five figures rendered for the paper.
+
+---
+
+## E11 — Energy relational track, dual-track end-to-end (2026-06-11)
+
+**Setup.** The energy GAT (ADR-0006): physical interconnector graph over 20
+European bidding zones (`EUROPEAN_INTERCONNECTORS`), floored hourly label
+(`energy_cross_sectional_label`, k=24h), 8 energy alphas' `_rank` columns as
+node features. **Same kernel as equity** — `GATModel`, `fit`, `build_sections`
+(via a `label_fn` hook), the four-gate `evaluate_alpha_suite`, and the
+attention-vs-uniform `ab_report` are reused verbatim; only the graph, label,
+and node set differ (`run_gat_energy.gat_energy_from_panel`). Synthetic power
+data (2857 hourly snapshots, 57,140 rows; ENTSO-E needs a token), winner HPs,
+static graph, IC loss, both retrain arms. Script `.scratch/run_energy.py`;
+artifacts `docs/results/2026-06-11_energy_*`.
+
+**Result — a clean negative control (the energy analogue of E1).**
+
+| arm | OOS IC | OOS Sharpe | vs best single | attention value-add | gates V/C/U/R |
+|---|---|---|---|---|---|
+| static + single | -0.0093 | -1.26 | -0.85 | **-0.74** | F/F/T/T |
+| static + walk-forward | -0.0113 | -1.11 | -0.70 | **-0.59** | F/F/T/T |
+
+Anchors: uniform-mean -0.52, island-mean -0.50, best single energy alpha
+-0.41 OOS Sharpe. Uniqueness passes (max corr 0.40-0.46), Robustness passes
+(structural); Value-added and Consistency fail.
+
+**Findings.**
+
+1. **The dual-track engineering goal is met**: a genuinely heterogeneous graph
+   (physical, hourly, bidding-zone) runs through the *same* GAT kernel and the
+   *same* four gates + A/B with no kernel changes — the "one kernel, two
+   graphs" thesis is now literal in code (C12). 54 tests pass, both tracks.
+
+2. **On synthetic data the pipeline correctly finds no edge — and does not
+   manufacture one.** OOS IC ~ 0, and crucially the **attention value-add is
+   negative** (-0.74, -0.59): the GAT is *worse* than the uniform-mean anchor
+   when there is no real relational signal. This is the energy counterpart of
+   E1 and reinforces C1 (no false positives): even with a learned attention
+   layer over a physical graph, no signal in → no signal out. A reassuring
+   property, not a disappointment.
+
+3. **The energy *value* claim is appropriately deferred to real data.**
+   Synthetic zones share only diurnal/seasonal structure, not the genuine
+   lead-lag transmission dynamics real coupled prices carry. The
+   physical-interconnector story (the design's strongest, §2) needs real
+   ENTSO-E flow data (token-gated, not available here) — same posture as
+   equity before its real-data run, with the equity success as the existence
+   proof that the pipeline can surface value when the data carries it.
+
+**Paper use.** E11 is the dual-track deliverable + a second no-false-positives
+control on a different graph; the honest energy-value result is "method and
+infrastructure complete, real-data validation pending ENTSO-E access".
+
+---
+
 ## Next experiments (priority order)
 
 1. ~~Dynamic per-snapshot graph~~ — **DONE, E6**: implemented
@@ -474,14 +721,14 @@ Deconfounded findings (these supersede finding 1 above):
 4. ~~Seed sensitivity~~ — **DONE, E7**; ~~HP grid~~ — **DONE, E9**: winner
    lr=3e-3/hidden=64/heads=2/layers=2 validated OOS; flat surface, depth-2
    is the only structural requirement.
-5. **Attention visualisation (M4)** — plumbing done
-   (`GATPropagator.last_attention`, head-layer softmax per snapshot, tested);
-   remaining: the qualitative story (which sectors/names attend to whom over
-   time) + a Streamlit "GAT vs Baseline" page.
+5. ~~Attention visualisation (M4)~~ — **DONE, E10**: the four readings +
+   five figures + the honest "gentle reweighting / stationary structure"
+   story. Remaining sub-item: fold a "GAT vs Baseline" view into Streamlit
+   (M5 platform integration).
 6. **Value-added gate variants** — the strict max-of-singles bar is the only
    open gate; report alongside it the mean-of-singles and
    marginal-contribution-to-a-multifactor-portfolio readings before
    concluding the composite adds nothing.
-7. **Significance for the WF-vs-single comparison** — more seeds (n=15-20
-   per arm, cheap on the single arm) or a paired test across seeds, to
-   upgrade "directionally helpful" if it holds.
+7. **Significance for the WF-vs-single comparison** — already significant in
+   the tuned config (E9b); optional hardening with more seeds for a tighter
+   interval.

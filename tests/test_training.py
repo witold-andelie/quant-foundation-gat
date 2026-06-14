@@ -7,6 +7,7 @@ from quant_alpha.graph.training import (
     Split,
     cross_sectional_label,
     cross_sectional_median_fill,
+    energy_cross_sectional_label,
     rank_ic,
     walk_forward_splits,
 )
@@ -53,6 +54,41 @@ def test_median_fill_uses_per_snapshot_median() -> None:
     # snapshot 1 median of {1,3} = 2.0; snapshot 2 median of {10,20} = 15.0
     assert filled["f"].iloc[2] == 2.0
     assert filled["f"].iloc[5] == 15.0
+
+
+def _energy_panel(n_hours: int = 30, markets: int = 5) -> pd.DataFrame:
+    ts = pd.date_range("2024-01-01", periods=n_hours, freq="h")
+    mkts = [f"M{i}" for i in range(markets)]
+    rng = np.random.default_rng(3)
+    rows = []
+    for m in mkts:
+        spot = 40 + np.cumsum(rng.normal(0, 2, n_hours))
+        for i, t in enumerate(ts):
+            rows.append({"timestamp": t, "market": m, "spot_price": float(spot[i])})
+    return pd.DataFrame(rows).set_index(["timestamp", "market"]).sort_index()
+
+
+def test_energy_label_tail_nan_and_centered() -> None:
+    k = 4
+    label = energy_cross_sectional_label(_energy_panel(), k=k, price_col="spot_price")
+    # last k snapshots per market have no t+k price -> NaN
+    per_market_tail = label.groupby(level=1).apply(lambda s: s.iloc[-k:].isna().all())
+    assert per_market_tail.all()
+    # z-scored per timestamp -> centred
+    means = label.dropna().groupby(level=0).mean()
+    assert np.allclose(means.to_numpy(), 0.0, atol=1e-9)
+
+
+def test_energy_label_floor_handles_near_zero_prices() -> None:
+    # a near-zero / negative spot must not blow the denominator up
+    idx = pd.MultiIndex.from_product(
+        [pd.date_range("2024-01-01", periods=3, freq="h"), ["A", "B"]],
+        names=["timestamp", "market"],
+    )
+    panel = pd.DataFrame({"spot_price": [0.0, 100.0, 5.0, 90.0, -2.0, 80.0]}, index=idx)
+    label = energy_cross_sectional_label(panel, k=1, price_col="spot_price", floor=20.0, clip=0.8)
+    # raw returns are finite (no div-by-zero) and the clip bound holds
+    assert np.isfinite(label.dropna().to_numpy()).all()
 
 
 def test_walk_forward_embargo_prevents_overlap() -> None:

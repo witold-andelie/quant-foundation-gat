@@ -78,14 +78,17 @@ def _fit_and_valid_ic(sections, epochs: int, loss: str, lr: float = 5e-3) -> flo
         in_dim=len(FEATURES), hidden_dim=8, heads=2, dropout=0.0,
         forward_k=K, epochs=epochs, lr=lr,
     )
+    # Pin to CPU: leakage controls are correctness gates and must be
+    # reproducible. fit auto-selects CUDA when present, and device RNG streams
+    # diverge enough to push the MSE planted-signal IC across its 0.3 threshold
+    # (E8). CPU keeps the controls deterministic, matching the paper-run device.
+    device = torch.device("cpu")
     import tempfile, os
     with tempfile.TemporaryDirectory() as tmp:
         model = fit(
-            ds, cfg, loss_fn=LOSSES[loss], out_path=os.path.join(tmp, "leak.pt"),
+            ds, cfg, device=device, loss_fn=LOSSES[loss], out_path=os.path.join(tmp, "leak.pt"),
             train_idx=train_idx, valid_idx=valid_idx,
         )
-    # follow the trained model's device (fit defaults to cuda when available)
-    device = next(model.parameters()).device
     return evaluate_ic(model, (ds[i] for i in valid_idx), device)
 
 

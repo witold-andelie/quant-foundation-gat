@@ -56,3 +56,19 @@ _Avoid_: traditional factor, single-name factor.
 A factor produced by propagation over the topology — it scores a node using
 its neighbours. The capstone's new family.
 _Avoid_: GNN factor, graph factor (when you mean the resulting factor).
+
+**Correlation graph** / **Interconnector graph**:
+The two track topologies. Equity uses a *correlation graph* — an estimated
+top-k return-correlation backbone (`edges_equity.py`). Energy uses an
+*interconnector graph* — the physical European cross-border transmission
+network (`edges_energy.py`), grounded in the grid, not estimated. Same GAT
+kernel, two heterogeneous graphs (ADR-0005/0006).
+_Avoid_: adjacency, network (when you mean a specific track's graph).
+
+**A/B anchor**:
+A no-learning baseline carried in every run to isolate what learned attention
+adds: the *island anchor* (`alpha_island_mean`, equal-weight composite, no
+propagation) and the *uniform anchor* (`alpha_uniform_composite`, uniform
+neighbour averaging over the same topology). The GAT's value claim is its
+margin over the uniform anchor — same inputs, same graph, unlearned weights.
+_Avoid_: control, benchmark (when you mean these specific anchors).

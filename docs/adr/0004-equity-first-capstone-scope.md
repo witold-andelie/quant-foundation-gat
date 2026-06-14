@@ -3,7 +3,14 @@
 The minimum credible capstone result is one complete, leakage-safe, beats-the-
 baseline chain on the **equity track** — graph -> GAT -> composite -> four gates
 -> Streamlit comparison. The energy track is documented as a framework
-extensibility story and left as stubs, not built.
+extensibility story; its *island* alphas are wired into the unified seam
+(`LegacyEnergyProvider`, 2026-06-11) but its *relational* layer
+(`edges_energy`, energy GAT, hourly-return label) is deferred, not built.
+
+> Update (2026-06-11): the `LegacyEnergyProvider` shim is implemented (the 8
+> imperative energy alphas exposed as `Factor`s, memoised, faithfulness- and
+> memoisation-tested) — there are no `NotImplementedError` stubs left in
+> `src/`. Only the energy *relational* track remains deferred per below.
 
 ## Considered Options
 

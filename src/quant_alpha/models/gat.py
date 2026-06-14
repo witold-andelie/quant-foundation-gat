@@ -38,7 +38,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset
 
-from quant_alpha.graph.propagate import Topology
+from quant_alpha.graph.propagate import Topology, tidy_attention_frame
 from quant_alpha.graph.training import (
     cross_sectional_label,
     cross_sectional_median_fill,
@@ -110,15 +110,22 @@ def build_sections(
     k: int,
     price_col: str = "adj_close",
     label_method: str = "zscore",
+    label_fn=None,
 ) -> list[CrossSection]:
     """Bridge a ``(time, entity)`` alpha panel into a list of CrossSection.
 
     Reuses the torch-free leakage-safe label from graph/training.py and the same
     topology source a GraphFactorProvider uses. A node is masked out when any of
-    its features or its label is missing.
+    its features or its label is missing. ``label_fn(panel, k, price_col)``
+    overrides the default equity price-ratio label — the energy track passes
+    ``energy_cross_sectional_label`` (floored hourly return), so the same
+    section builder serves both tracks.
     """
     panel = panel.sort_index()
-    label = cross_sectional_label(panel, k=k, price_col=price_col, method=label_method)
+    if label_fn is None:
+        label = cross_sectional_label(panel, k=k, price_col=price_col, method=label_method)
+    else:
+        label = label_fn(panel, k=k, price_col=price_col)
     panel = cross_sectional_median_fill(panel, tuple(feature_cols))
 
     sections: list[CrossSection] = []
@@ -383,6 +390,35 @@ def composite_series(
     device = device or next(model.parameters()).device  # follow the trained model
     parts = _score_sections(model, ds, range(len(ds)), device, name)
     return pd.concat(parts) if parts else pd.Series(name=name, dtype=float)
+
+
+@torch.no_grad()
+def attention_panel(
+    model: GATModel, ds: FactorGraphDataset, device=None
+) -> pd.DataFrame:
+    """Head-layer attention for every snapshot as a tidy ``(date, src, dst,
+    weight)`` frame — the M4 analysis input.
+
+    The same node mapping as ``composite_series`` (symbols from
+    ``CrossSection.symbols``), so attention rows align to the alpha panel.
+    ``weight`` into each ``dst`` softmaxes over that node's in-neighbourhood
+    (incl. the self-loop), summing to 1. Snapshots whose graph has no edges
+    (early dates under a dynamic graph) contribute nothing."""
+    device = device or next(model.parameters()).device
+    model.eval()
+    frames: list[pd.DataFrame] = []
+    for sec in ds:
+        if sec.edge_index.numel() == 0:
+            continue
+        _out, (att_edges, alpha) = model.forward_with_attention(
+            sec.x.to(device), sec.edge_index.to(device)
+        )
+        frame = tidy_attention_frame(att_edges, alpha, list(sec.symbols))
+        frame.insert(0, "date", sec.time)
+        frames.append(frame)
+    if not frames:
+        return pd.DataFrame(columns=["date", "src", "dst", "weight"])
+    return pd.concat(frames, ignore_index=True)
 
 
 def walk_forward_composite_series(

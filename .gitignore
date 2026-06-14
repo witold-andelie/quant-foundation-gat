@@ -38,3 +38,5 @@ data/warehouse/gat_seed_*.pt
 data/warehouse/gat_bench_*.pt
 data/warehouse/gat_static_*.pt
 data/warehouse/gat_dynamic_*.pt
+data/warehouse/gat_attention.pt
+data/warehouse/gat_energy*.pt
