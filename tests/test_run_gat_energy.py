@@ -70,3 +70,21 @@ def test_gat_energy_walk_forward_and_dynamic(tmp_path) -> None:
     oos = panel[panel["date"] > dates[int(len(dates) * 0.6)]]
     assert oos[COMPOSITE_NAME].notna().all()  # walk-forward covers the OOS window
     assert (tmp_path / "gat_energy_wf.pt").exists()
+
+
+def test_gat_energy_drops_all_nan_alpha(tmp_path) -> None:
+    # ENTSO-E carries no gas price -> alpha_energy_gas_spark_spread is all-NaN.
+    # Dropping gas_price reproduces that: the run must drop the dead alpha and
+    # still complete + evaluate on the surviving 7.
+    raw = generate_synthetic_power_market(MARKETS, "2024-01-01", "2024-01-08", freq="h")
+    raw = raw.drop(columns=["gas_price"])
+
+    out = gat_energy_from_panel(
+        raw, ProjectConfig().backtest,
+        k=6, window=48, epochs=1, hidden_dim=8, heads=2, train_ratio=0.7,
+        out_path=str(tmp_path / "gat_energy_nogas.pt"),
+    )
+    names = set(out["diagnostics"]["alpha_name"])
+    assert "alpha_energy_gas_spark_spread" not in names  # dropped, not evaluated
+    assert COMPOSITE_NAME in names
+    assert out["panel"][COMPOSITE_NAME].notna().sum() > 0

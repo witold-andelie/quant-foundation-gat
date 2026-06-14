@@ -9,16 +9,20 @@ _Last updated: 2026-06-10._
 
 ## Status in one line
 
-**Now dual-track (ADR-0006).** The equity axis is closed, tested, ablated,
-seed-qualified, HP-tuned, and attention-analysed on real data (E1-E10); the
-energy axis is built and tested on the same GAT kernel — physical
-interconnector graph (20 zones) + hourly label + bidding-zone nodes
-(`run_gat_energy`, E11). Flow per track: panel -> graph -> GAT training (IC
-loss; single or walk-forward) -> composite + no-learning anchors -> four
-gates + attention A/B. **54 new-module tests passing; no `NotImplementedError`
-left in `src/`.** Equity has real-data value (3/4 gates, attention 20/20
-positive); energy on synthetic data is a clean negative control (no false
-positives, C12), its value claim pending real ENTSO-E data. Split hygiene locked (ADR-0003 amendment);
+**Now dual-track (ADR-0006), both run on REAL data.** The equity axis is
+closed, tested, ablated, seed-qualified, HP-tuned, and attention-analysed on
+real yfinance data (E1-E10); the energy axis is built on the same GAT kernel —
+physical interconnector graph (20 zones) + hourly label + bidding-zone nodes
+(`run_gat_energy`) — and run on synthetic (E11) and **live ENTSO-E** data
+(E12, token validated, 20/20 EIC codes). Flow per track: panel -> graph -> GAT
+training (IC loss; single or walk-forward) -> composite + no-learning anchors
+-> four gates + attention A/B. **55 new-module tests passing; no
+`NotImplementedError` left in `src/`.** Equity has real-data value (3/4 gates,
+attention 30/30 positive). **Energy: synthetic is a clean negative control;
+the real-data run (E12) produces implausible Sharpe-8 metrics that the
+project's own skepticism diagnoses as leakage artifacts (overlapping 24h
+labels, day-ahead lookahead, mis-annualisation) — a cautionary methodology
+result (C13), NOT a value claim.** Split hygiene locked (ADR-0003 amendment);
 leakage controls automated; HP selection used valid IC only and transferred
 to OOS in the walk-forward arm (E9/E9b, device-deconfounded). Headline:
 **attention value-add over the uniform anchor is positive in 30/30 seeded
@@ -69,9 +73,9 @@ Config: `Universe.sectors` added (`config.py`); `configs/universe.yaml` = 50 nam
 `test_graph_propagate.py` (3) · `test_factor_provider.py` (7, incl. energy shim
 faithfulness + memoise) · `test_training.py` (8, incl. energy label) ·
 `test_edges_equity.py` (9) · `test_edges_energy.py` (5, interconnector graph)
-· `test_gat.py` (7) · `test_run_gat_equity.py` (2) · `test_run_gat_energy.py` (2)
-· `test_leakage.py` (4) · `test_attention.py` (7)
-= **54 passing** (torch tests `importorskip`, run here because torch is installed).
+· `test_gat.py` (7) · `test_run_gat_equity.py` (2) · `test_run_gat_energy.py` (3,
+incl. all-NaN-alpha drop) · `test_leakage.py` (4) · `test_attention.py` (7)
+= **55 passing** (torch tests `importorskip`, run here because torch is installed).
 
 ## How to run / resume
 
@@ -134,18 +138,22 @@ IC loss default (E4) · first real-data run (E5) · 2x2 graph-x-retraining
 ablation with A/B anchors (E6) · seed sensitivity (E7) · GPU benchmark —
 negative, CPU stays (E8) · HP grid by valid IC + OOS winner validation (E9)
 · attention plumbing (`last_attention`) · split hygiene + automated leakage
-controls (E2/E3) · attention qualitative analysis (E10/M4) · **energy
-relational track (E11): physical interconnector graph + hourly label +
-`run_gat_energy`, dual-track on the shared kernel, 54 tests, synthetic
-negative control clean.**
+controls (E2/E3) · attention qualitative analysis (E10/M4) · energy
+relational track (E11, synthetic negative control) · **real ENTSO-E data
+wired + fetched (E12): token validated, 20/20 EIC codes, 2024 full-year 20
+zones — diagnosed the real-data metrics as leakage artifacts (C13), a
+cautionary methodology result.** 55 tests.
 
 Remaining, in order:
 
-1. **Real ENTSO-E energy data** — the energy track is built and validated as a
-   negative control on synthetic data; its *value* claim needs real coupled
-   power prices (the physical-interconnector story). Needs an ENTSO-E API
-   token (`pipeline_energy` source=`entsoe`) + bidding-zone EIC codes for the
-   ~20 zones. Same posture equity was in before its real-data run.
+1. **Energy label/eval redesign for a valid real-data result** — E12 showed a
+   naive equity-label port to day-ahead power leaks (overlapping 24h windows,
+   day-ahead lookahead, mis-annualisation). A real energy value claim needs: a
+   non-overlapping horizon aligned to the day-ahead gate-close; features
+   strictly available before gate-close; hourly annualisation (8760, not 252);
+   a deflated/block-bootstrap Sharpe. The infra (`fetch_energy_raw`
+   source=entsoe, `configs/energy_universe_gnn.yaml`) is ready; this is a
+   research redesign, not plumbing.
 2. **Value-added gate variants** — the strict max-of-singles bar (3.07) is
    the one open gate; add mean-of-singles and marginal-contribution-to-a-
    multifactor-portfolio readings before concluding the composite adds
@@ -153,7 +161,7 @@ Remaining, in order:
 3. **Platform integration (M5)** — composite into dbt marts; Streamlit
    "GAT vs Baseline" page (now has real content: E6 matrix, E7/E9 seed
    distributions, E10 attention figures).
-4. **Paper assembly** — the evidence map (C1-C12) and narrative order are
+4. **Paper assembly** — the evidence map (C1-C13) and narrative order are
    ready in the experiment log; limitations list in E5 + static-graph
    lookahead + stationary-attention (E10) + energy-on-synthetic (E11).
    Data-source upgrade (survivorship-bias-free vendor) if time permits.

@@ -71,7 +71,11 @@ ENERGY_ALPHA_EXPRESSIONS = {alpha.name: alpha.expression for alpha in ENERGY_ALP
 def _zscore(series: pd.Series, window: int) -> pd.Series:
     mean = series.rolling(window).mean()
     std = series.rolling(window).std()
-    return (series - mean) / std.replace(0, pd.NA)
+    # np.nan, not pd.NA: pd.NA upcasts the float series to object dtype, and a
+    # later unary minus (the -zscore alphas) then fails on a None element. Real
+    # power data hits zero-variance windows (e.g. solar=0 overnight) far more
+    # often than synthetic, which is why this only surfaced on ENTSO-E data.
+    return (series - mean) / std.replace(0, np.nan)
 
 
 def add_energy_alpha_features(frame: pd.DataFrame) -> pd.DataFrame:

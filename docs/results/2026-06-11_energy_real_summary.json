@@ -1,0 +1,93 @@
+{
+  "window": [
+    "2024-01-01",
+    "2024-12-31"
+  ],
+  "negative_price_share": 0.039537671232876714,
+  "runs": {
+    "real_static_single": {
+      "elapsed_s": 855.6,
+      "gate_report": {
+        "composite_oos_ic_mean": 0.20198834904101748,
+        "composite_oos_ic_ir": 0.536494198213244,
+        "value_added": {
+          "composite_oos_sharpe": 8.24535620183324,
+          "best_single_oos_sharpe": 0.07712609732035385,
+          "sharpe_value_added": 8.168230104512885,
+          "passed": true
+        },
+        "consistency": {
+          "is_oos_ic_same_sign": true,
+          "consistency_score": 1.0,
+          "passed": true
+        },
+        "uniqueness": {
+          "max_abs_corr_vs_single": 0.6593044671697116,
+          "passed": true
+        },
+        "robustness": {
+          "robustness_score": 0.8558520856353611,
+          "passed": true
+        }
+      },
+      "ab_report": {
+        "gat": {
+          "oos_ic_mean": 0.20198834904101748,
+          "oos_sharpe": 8.24535620183324
+        },
+        "uniform_mean": {
+          "oos_ic_mean": -0.16115434887643382,
+          "oos_sharpe": -6.672648022939675
+        },
+        "island_mean": {
+          "oos_ic_mean": -0.18683537188583949,
+          "oos_sharpe": -8.259983012048002
+        },
+        "attention_sharpe_value_add": 14.918004224772915,
+        "gat_uniform_spearman": -0.528429356468766
+      }
+    },
+    "real_static_wf": {
+      "elapsed_s": 2762.2,
+      "gate_report": {
+        "composite_oos_ic_mean": 0.2055827105644147,
+        "composite_oos_ic_ir": 0.5341237435726633,
+        "value_added": {
+          "composite_oos_sharpe": 8.235276732074103,
+          "best_single_oos_sharpe": 0.07712609732035385,
+          "sharpe_value_added": 8.15815063475375,
+          "passed": true
+        },
+        "consistency": {
+          "is_oos_ic_same_sign": true,
+          "consistency_score": 1.0,
+          "passed": true
+        },
+        "uniqueness": {
+          "max_abs_corr_vs_single": 0.6164703063504257,
+          "passed": true
+        },
+        "robustness": {
+          "robustness_score": 0.8512432691602001,
+          "passed": true
+        }
+      },
+      "ab_report": {
+        "gat": {
+          "oos_ic_mean": 0.2055827105644147,
+          "oos_sharpe": 8.235276732074103
+        },
+        "uniform_mean": {
+          "oos_ic_mean": -0.16115434887643382,
+          "oos_sharpe": -6.672648022939675
+        },
+        "island_mean": {
+          "oos_ic_mean": -0.18683537188583949,
+          "oos_sharpe": -8.259983012048002
+        },
+        "attention_sharpe_value_add": 14.907924755013777,
+        "gat_uniform_spearman": -0.49576063226656114
+      }
+    }
+  }
+}

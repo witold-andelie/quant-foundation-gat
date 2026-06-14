@@ -57,8 +57,15 @@ capstone's "one kernel, two heterogeneous graphs" thesis made literal in code.
 - The energy track is additive, not a rewrite — it validates the seam design
   (ADR-0001/0002): a genuinely different (physical, hourly, zone) graph drops
   into the same pipeline.
-- Synthetic power data (no ENTSO-E token here) doubles as a pipeline-integrity
-  check, like equity E1; the physical-interconnector value story needs real
-  coupled prices (deferred to data access).
+- Synthetic power data doubles as a pipeline-integrity check, like equity E1.
+- **Real ENTSO-E data (E12, 2026-06-11) exposed a structural trap**: a naive
+  port of the equity 24h cross-sectional label to hourly day-ahead power
+  produces implausible metrics (Sharpe 8.25) from overlapping label windows
+  (lag-1 autocorr 0.91), day-ahead lookahead (the whole next day's prices
+  publish at once), a trivial `-spot` predictor (IC 0.235 > GAT 0.20), and
+  252-vs-8760 mis-annualisation. The infrastructure runs on real data, but a
+  valid energy result needs a market-structure-aware label and evaluation
+  (non-overlapping horizon at gate-close, gate-close-available features,
+  hourly annualisation, deflated Sharpe). This is exactly ADR-0004's warning.
 - Deferred refinements: directed/asymmetric transmission edges (cost vs demand
   side), real ENTSO-E flow-based weights, hour-of-day conditioning.

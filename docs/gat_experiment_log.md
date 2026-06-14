@@ -12,8 +12,8 @@ self-correction trail (e.g. E9 → E9b device deconfound) stays auditable, which
 is itself a credibility asset for the paper._
 
 **Contents:** evaluation framework (methods) · headline results (summary table)
-· paper evidence map (C1-C12) · narrative order · consolidated limitations ·
-reproducibility · chronological entries E1-E11.
+· paper evidence map (C1-C13) · narrative order · consolidated limitations ·
+reproducibility · chronological entries E1-E12.
 
 ---
 
@@ -86,11 +86,15 @@ token-gated). All multi-seed numbers are mean ± std over 5 seeds, CPU.
 | Equity, first real run (1 seed) | 0.0066 | 1.42 | n/a | F/T/T/T | E5 |
 | Energy, winner + walk-forward (synthetic) | -0.011 | -1.11 | -0.59 | F/F/T/T | E11 |
 | Energy, winner + single (synthetic) | -0.009 | -1.26 | -0.74 | F/F/T/T | E11 |
+| Energy, REAL ENTSO-E (artifact — do not cite as value) | 0.202 | 8.25 | +8.17 | +14.9 | T/T/T/T | E12 |
 
 Reference points: best single equity alpha (`alpha_wq_010_gap_quality`) OOS
 Sharpe ≈ 2.9-3.1; **attention value-add positive in 30/30 equity seeded runs**;
 energy attention value-add negative on synthetic (correct null). Equity passes
-3/4 gates (Value-added open); energy passes 2/4 (negative control).
+3/4 gates (Value-added open). The energy REAL-DATA row is a **cautionary
+artifact** (E12/C13): the implausible magnitude reflects overlapping labels +
+day-ahead lookahead + mis-annualisation, not alpha — kept in the table only as
+the worked leakage example, never as a value claim.
 
 Headline reading: **learned attention reliably beats unlearned relational
 propagation (the core thesis), the composite is a real/unique/consistent signal
@@ -118,14 +122,16 @@ here is not yet supported.
 | C9 | **The evaluation protocol is self-validating, with nuance**: HPs selected purely on the IS-internal valid IC transferred to OOS in the walk-forward arm (same-device: IC 0.0148 +/- 0.0043 vs default's 0.0055 +/- 0.0147 — 2.7x mean, 1/3 variance) but not in the single arm (a wash). Model selection never touched the OOS window. The initial both-arms read was a device artifact, caught and corrected (E9 correction) | E9 + E9b | `2026-06-10_hp_grid_valid_ic.csv` + `..._winner_validation_{gpu,cpu}.csv` |
 | C10 | The HP surface is flat near the top (six configs within 0.10-0.115 valid IC); the only structural requirement is **2 GAT layers** (all top-6). Results are robust to reasonable HP choices — a robustness point, and a caution against HP-tuning theatre | E9 grid | `2026-06-10_hp_grid_valid_ic.csv` |
 | C11 | **Attention is interpretable and mechanistically explains the result**: 91.6% on neighbours (not self-collapse), but near-uniform across ~12.5 neighbours (entropy 0.96, sector lift +0.019) — a gentle reweighting of mean pooling, which is *why* the edge over the uniform anchor is real but modest (C3). Hubs are economically sensible mega-caps/bellwethers. The structure is temporally stationary, so the "regime-adaptive" framing is **not** supported at the aggregate level | E10 | `2026-06-11_attention_*.csv`, `figures/` |
-| C12 | **One kernel, two heterogeneous graphs (dual-track)**: a physical interconnector graph (20 bidding zones, hourly label) runs through the *same* GAT model, section builder, four gates, and A/B as the equity correlation graph — only graph/label/nodes differ. On synthetic energy the pipeline correctly finds no edge and attention value-add is *negative* (no false positives on a second graph type, C1); the energy value claim awaits real ENTSO-E data | E11 | `2026-06-11_energy_*.csv/json`, ADR-0006 |
+| C12 | **One kernel, two heterogeneous graphs (dual-track)**: a physical interconnector graph (20 bidding zones, hourly label) runs through the *same* GAT model, section builder, four gates, and A/B as the equity correlation graph — only graph/label/nodes differ. Synthetic energy is a clean negative control (attention VA negative; no false positives, C1) | E11 | `2026-06-11_energy_*.csv/json`, ADR-0006 |
+| C13 | **Cautionary real-data result (methodology contribution)**: live ENTSO-E energy data produces implausible metrics (Sharpe 8.25, composite ~100x its best single, 4/4 gates) that are *artifacts* — overlapping 24h labels at hourly cadence (lag-1 autocorr 0.91), a trivial `-spot[t]` predictor with higher IC (0.235 > 0.20), wrong annualisation, and day-ahead lookahead. The project's own skepticism catches it; a valid energy claim needs a market-structure-aware label (vindicates ADR-0004) | E12 | `2026-06-11_energy_real_*`, E12 diagnosis |
 
 **Suggested paper narrative order** (each step cites the rows above):
 methods & seams (ADRs) -> evaluation protocol & leakage controls (C1, C7) ->
 training objective (C2) -> main A/B result (C3) -> gates & honest reading
 (C4, C5) -> ablation & negative results (C6) -> robustness & variance
 (C8, C9, C10) -> attention interpretability & mechanism (C11) -> dual-track
-generalisation: one kernel, two graphs (C12) -> limitations -> future work.
+generalisation: one kernel, two graphs (C12) -> a real-data leakage cautionary
+tale caught by our own skepticism (C13) -> limitations -> future work.
 
 ---
 
@@ -146,9 +152,13 @@ scope choice, not an oversight, and several are themselves results.
    (E10/C11) — the value comes from small tilts on broad pooling, and the
    coarse attention structure is temporally stationary, contradicting the
    original "macro-regime-adaptive" hypothesis. Reported as a finding.
-4. **Energy value claim unvalidated** — energy runs on synthetic power data
-   (ENTSO-E token-gated); it is a clean negative control (C12), not a value
-   demonstration. The physical-interconnector story needs real coupled prices.
+4. **Energy value claim unvalidated; real-data metrics are leakage artifacts**
+   — synthetic energy is a clean negative control (C12); real ENTSO-E data
+   (E12/C13) produces implausible metrics (Sharpe 8.25) from overlapping 24h
+   labels (autocorr 0.91), day-ahead lookahead, a trivial `-spot` predictor
+   (IC 0.235 > GAT's 0.20), and 252-vs-8760 mis-annualisation. A valid energy
+   result needs a market-structure-aware label/evaluation. Never cite the
+   real-data energy numbers as value.
 5. **Walk-forward significance is config-local** — significant in the tuned
    config (E9b, t~3.9) and directionally consistent across three paired
    comparisons, but n=5 per arm; not a large-sample claim.
@@ -171,7 +181,8 @@ scope choice, not an oversight, and several are themselves results.
 - **Run scripts** (in `.scratch/`, archived outputs in `docs/results/`):
   `run_real.py` (E5), `run_matrix.py` (E6), `run_seeds.py` (E7),
   `bench_gpu.py` (E8), `run_hp_grid.py`+`run_winner.py` (E9/E9b),
-  `run_attention.py` (E10), `run_energy.py` (E11).
+  `run_attention.py` (E10), `run_energy.py` (E11), `run_energy_real.py` (E12,
+  live ENTSO-E; `ENTSOE_API_KEY` env + `configs/energy_universe_gnn.yaml`).
 - **Artifacts** (`docs/results/`, date-prefixed): per-run diagnostics CSVs,
   matrix/seed/HP/winner/energy summaries (CSV+JSON), attention time-series CSVs
   + five figures under `figures/`. Representative model weights are gitignored
@@ -705,6 +716,73 @@ Anchors: uniform-mean -0.52, island-mean -0.50, best single energy alpha
 **Paper use.** E11 is the dual-track deliverable + a second no-false-positives
 control on a different graph; the honest energy-value result is "method and
 infrastructure complete, real-data validation pending ENTSO-E access".
+
+---
+
+## E12 — Real ENTSO-E energy data: a cautionary leakage result (2026-06-11)
+
+**The honest headline: the real-data energy metrics are too good to be true,
+and that is the finding.** Token-gated ENTSO-E day-ahead data fetched live;
+the pipeline runs end-to-end on real prices, but the four-gate numbers are
+artifacts of day-ahead market structure, not alpha. This vindicates ADR-0004's
+explicit warning that the energy label is the dangerous part.
+
+**Setup.** Live ENTSO-E fetch (`fetch_entsoe_power_market`, token validated):
+20 bidding zones, full-year 2024 hourly, 175,200 rows, **20/20 EIC codes
+returned data** (`configs/energy_universe_gnn.yaml`, live-validated). Real
+prices span **-427 to 1896 EUR/MWh with 3.95% negative** — vindicating the
+floored label's design. 7 of 8 alphas compute (gas_spark_spread dropped: no
+gas feed in ENTSO-E). Winner HPs, k=24h, both retrain arms. Artifacts
+`docs/results/2026-06-11_energy_real_*`.
+
+**Reported numbers (NOT trustworthy — see diagnosis):**
+
+| arm | OOS IC | OOS Sharpe | vs best single | attention VA | gates |
+|---|---|---|---|---|---|
+| real static + single | 0.202 | 8.25 | +8.17 | +14.9 | T/T/T/T |
+| real static + walk-forward | 0.206 | 8.24 | +8.16 | +14.9 | T/T/T/T |
+
+A Sharpe of 8 and a composite **~100x its best single input** (best single
+Sharpe 0.08) are not credible — the same kernel gives an honest ~1.4 on equity.
+Three compounding artifacts, each measured:
+
+1. **Overlapping label windows.** The 24h-horizon forward return sampled
+   hourly has **lag-1 autocorrelation 0.91** — consecutive "returns" share 23
+   of 24 hours. The backtest treats them as independent, so the Sharpe
+   denominator is understated by a large factor (effective sample ~1/24 of
+   nominal). Primary Sharpe inflator.
+2. **The "signal" is trivial.** A naive `-spot[t]` predictor (negative current
+   price level = daily mean reversion) has cross-sectional **IC 0.235 — higher
+   than the GAT's 0.20**. The apparent edge is deterministic diurnal
+   mean-reversion, not a learned relational factor.
+3. **Wrong annualisation.** `periods_per_year=252` (daily equity) applied to
+   hourly energy; energy has 8760 periods/yr.
+
+Plus **day-ahead lookahead**: the auction publishes all 24 hours of day D at
+once on D-1, so a "24h-ahead" label at hour t is partly contemporaneous
+information, not future.
+
+**Findings.**
+
+1. **Infrastructure success, result failure (honestly).** The dual-track
+   pipeline fetches and runs on real ENTSO-E data with no kernel changes — but
+   a *valid* energy result requires a market-structure-aware redesign, not the
+   equity evaluation ported verbatim. The equity track remains the project's
+   genuine value demonstration.
+2. **The leakage is self-evident from the magnitude, and the project's own
+   skepticism caught it** — the same no-false-positives discipline that made
+   the synthetic controls (E1, E11) a feature here flags a real-data result as
+   not-credible rather than reporting Sharpe 8. This is the paper's strongest
+   methodological point, not a setback.
+3. **Required for a real energy value claim** (future work): non-overlapping
+   horizon aligned to the day-ahead gate-close; features strictly available
+   before gate-close (no contemporaneous day-ahead prices); correct hourly
+   annualisation; a deflated/independent-period Sharpe (e.g. block bootstrap).
+
+**Paper use.** E12 is a methodology contribution: a worked example of how a
+GNN can manufacture an implausible result on a market whose microstructure
+breaks a naive cross-sectional label — and of catching it. Pair with C1/E1/E11
+(no false positives) as the credibility spine.
 
 ---
 

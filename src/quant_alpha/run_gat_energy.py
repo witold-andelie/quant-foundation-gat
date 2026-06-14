@@ -96,13 +96,21 @@ def gat_energy_from_panel(
     torch_device = None if device == "auto" else torch.device(device)
 
     feats = add_energy_alpha_features(raw)
-    for col in ENERGY_ALPHA_NAMES:
+    # Drop alphas with no data at all (e.g. gas_spark_spread on ENTSO-E, which
+    # carries no gas price): an all-NaN feature is a dead input dimension and an
+    # all-NaN single would poison the max-of-singles gate. Synthetic data keeps
+    # all 8.
+    active_alphas = [name for name in ENERGY_ALPHA_NAMES if feats[name].notna().any()]
+    dropped = [name for name in ENERGY_ALPHA_NAMES if name not in active_alphas]
+    if dropped:
+        print(f"energy: dropping all-NaN alphas {dropped} (no source data)", flush=True)
+    for col in active_alphas:
         feats[f"{col}_rank"] = feats.groupby("timestamp")[col].rank(pct=True)
     feats["ret_1d"] = feats.groupby("market")["spot_price"].pct_change()
     indexed = feats.set_index(["timestamp", "market"]).sort_index()
     indexed["forward_return"] = _floored_forward_return(indexed, k, "spot_price", floor, clip)
 
-    feature_cols = tuple(f"{col}_rank" for col in ENERGY_ALPHA_NAMES)
+    feature_cols = tuple(f"{col}_rank" for col in active_alphas)
     times = sorted(indexed.index.get_level_values(0).unique())
     n_is = int(len(times) * train_ratio) + 1
     split_time = times[n_is - 1]
@@ -155,7 +163,7 @@ def gat_energy_from_panel(
             on=["date", "symbol"], how="left",
         )
 
-    alpha_cols = list(ENERGY_ALPHA_NAMES) + [ISLAND_MEAN_NAME, UNIFORM_NAME, COMPOSITE_NAME]
+    alpha_cols = list(active_alphas) + [ISLAND_MEAN_NAME, UNIFORM_NAME, COMPOSITE_NAME]
     diagnostics, alpha_metrics, _ = evaluate_alpha_suite(
         panel, alpha_cols, backtest_cfg, split_date=str(split_time)
     )
@@ -163,17 +171,70 @@ def gat_energy_from_panel(
         "panel": panel,
         "diagnostics": diagnostics,
         "alpha_metrics": alpha_metrics,
-        "gate_report": gate_report(diagnostics, panel, list(ENERGY_ALPHA_NAMES)),
+        "gate_report": gate_report(diagnostics, panel, list(active_alphas)),
         "ab_report": ab_report(diagnostics, panel),
         "weights_path": out_path,
     }
+
+
+def fetch_energy_raw(
+    config_path,
+    root,
+    *,
+    source: str = "synthetic",
+    markets: list[str] | None = None,
+    universe_path: str | None = None,
+) -> pd.DataFrame:
+    """Build a power-market panel from the synthetic generator or live ENTSO-E.
+
+    source="synthetic" (default, no token) generates the full interconnector
+    zone set. source="entsoe" fetches real day-ahead prices + load/wind/solar
+    via ingestion.entsoe for the zones in universe_path (default
+    configs/energy_universe_gnn.yaml); needs ENTSOE_API_KEY in the environment.
+    Zones whose EIC code returns no data are dropped (the graph adapts to the
+    zones present), so a partial or unverified EIC list still runs.
+    """
+    from quant_alpha.config import load_project_config, load_yaml
+    from quant_alpha.graph.edges_equity import EUROPEAN_BIDDING_ZONES
+
+    cfg = load_project_config(config_path, root=root)
+    if source == "synthetic":
+        from quant_alpha.ingestion.energy import generate_synthetic_power_market
+
+        zones = markets or list(EUROPEAN_BIDDING_ZONES)
+        return generate_synthetic_power_market(
+            zones, cfg.start_date, cfg.end_date or cfg.start_date, freq=cfg.bar_interval
+        )
+    if source == "entsoe":
+        from quant_alpha.ingestion.entsoe import EntsoeClient, fetch_entsoe_power_market
+
+        upath = universe_path or (root / "configs" / "energy_universe_gnn.yaml")
+        universe = load_yaml(upath)
+        domains = {str(k): str(v) for k, v in universe.get("entsoe_domains", {}).items()}
+        zones = markets or list(universe.get("markets", list(domains.keys())))
+        client = EntsoeClient.from_env(
+            token_env=cfg.entsoe.token_env,
+            base_url=cfg.entsoe.base_url,
+            timeout_seconds=cfg.entsoe.timeout_seconds,
+        )
+        raw = fetch_entsoe_power_market(
+            markets=zones, domains=domains,
+            start=cfg.start_date, end=cfg.end_date or cfg.start_date,
+            bar_interval=cfg.bar_interval, client=client,
+        )
+        got = sorted(raw["market"].unique())
+        print(f"ENTSO-E: {len(got)}/{len(zones)} zones returned data: {got}", flush=True)
+        return raw
+    raise ValueError(f"source must be 'synthetic' or 'entsoe', got {source!r}")
 
 
 def run_gat_energy(
     config_path,
     root,
     *,
+    source: str = "synthetic",
     markets: list[str] | None = None,
+    universe_path: str | None = None,
     **kwargs,
 ) -> dict:
     """Generate (or load) a power-market panel, then run the energy GAT layer.
@@ -183,12 +244,9 @@ def run_gat_energy(
     set so the graph is dense enough for attention.
     """
     from quant_alpha.config import load_project_config
-    from quant_alpha.graph.edges_energy import EUROPEAN_BIDDING_ZONES
-    from quant_alpha.ingestion.energy import generate_synthetic_power_market
 
     cfg = load_project_config(config_path, root=root)
-    zones = markets or list(EUROPEAN_BIDDING_ZONES)
-    raw = generate_synthetic_power_market(
-        zones, cfg.start_date, cfg.end_date or cfg.start_date, freq=cfg.bar_interval
+    raw = fetch_energy_raw(
+        config_path, root, source=source, markets=markets, universe_path=universe_path
     )
     return gat_energy_from_panel(raw, cfg.backtest, **kwargs)

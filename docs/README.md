@@ -6,7 +6,7 @@ Long-form documentation for Quant Alpha Foundation. For module-level READMEs see
 
 | Document | Audience | Description |
 |---|---|---|
-| [gat_experiment_log.md](gat_experiment_log.md) | Researchers / paper | **Canonical dual-track GAT experiment record (PRIMARY paper source)** — evaluation framework (four-gate definitions + thresholds, A/B anchors, split protocol, labels), headline results table, evidence map (C1–C12), consolidated limitations, reproducibility, and chronological entries E1–E11 (equity real data + energy synthetic) |
+| [gat_experiment_log.md](gat_experiment_log.md) | Researchers / paper | **Canonical dual-track GAT experiment record (PRIMARY paper source)** — evaluation framework (four-gate definitions + thresholds, A/B anchors, split protocol, labels), headline results table, evidence map (C1–C13), consolidated limitations, reproducibility, and chronological entries E1–E12 (equity real data + energy synthetic + live ENTSO-E cautionary result) |
 | [gnn_capstone_design.md](gnn_capstone_design.md) | All | GNN relational-factor capstone architecture design (thesis, two-track graphs, milestones M1–M5); dual-track implementation banner up top |
 | [CAPSTONE_STATUS.md](CAPSTONE_STATUS.md) | Agents / resume | Progress snapshot and resume point — module map (both tracks), test counts, environment quirks, prioritised next steps |
 | [adr/](adr/) | All | Architecture decision records 0001–0006 (propagate seam, factor provider, training objective + split hygiene, equity-first→dual-track scope, equity correlation graph, energy interconnector graph) |
