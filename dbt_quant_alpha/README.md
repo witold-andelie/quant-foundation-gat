@@ -19,8 +19,17 @@ dbt_quant_alpha/
 │       ├── fct_alpha_panel.sql         Factor panel with signal date
 │       ├── fct_backtest_daily.sql      Daily portfolio returns
 │       ├── fct_alpha_decay.sql         IC by forward horizon
-│       └── fct_alpha_turnover.sql      Per-factor turnover (if added)
+│       ├── fct_alpha_turnover.sql      Per-factor turnover (if added)
+│       ├── fct_gat_vs_baseline.sql     GAT capstone: tiered relational A/B
+│       └── fct_gat_scorecard.sql       GAT capstone: one-row gates + A/B
 ```
+
+The GAT capstone marts read the `gat_relational` source (4 tables written by
+`run_gat_equity.persist_gat_outputs` / `quant-alpha gat-equity --persist`).
+`fct_gat_vs_baseline` tags every alpha by tier (relational_gat /
+relational_unlearned / island_mean / island_single) for the GAT-vs-baseline
+comparison; `fct_gat_scorecard` is the one-row headline (four gates, value-add
+over best single, attention A/B). duckdb + dbt live in a venv at `D:\duckdb`.
 
 ## Models
 

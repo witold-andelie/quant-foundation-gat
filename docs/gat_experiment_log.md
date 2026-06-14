@@ -183,7 +183,7 @@ scope choice, not an oversight, and several are themselves results.
 - **Environment.** Python 3.13 (`py` launcher); `torch 2.12.0+cu126` +
   `torch_geometric` (`[gnn]` extra); paper runs on **CPU** (E8). `PYTHONPATH=src`.
   Equity needs `yfinance`; energy uses the synthetic generator (ENTSO-E optional).
-- **Tests.** 54 new-module tests (`tests/test_{gat,training,edges_equity,
+- **Tests.** 55 new-module tests (`tests/test_{gat,training,edges_equity,
   edges_energy,graph_propagate,factor_provider,run_gat_equity,run_gat_energy,
   leakage,attention}.py`); leakage controls pinned to CPU for determinism.
 - **Run scripts** (in `.scratch/`, archived outputs in `docs/results/`):
@@ -198,8 +198,15 @@ scope choice, not an oversight, and several are themselves results.
   + five figures under `figures/`. Representative model weights are gitignored
   (transient); the canonical `data/warehouse/gat_equity.pt` is tracked.
 - **CLI.** `quant-alpha gat-equity --graph {static,dynamic} --retrain
-  {single,walk-forward} --loss {ic,mse} --device {cpu,cuda,auto}`;
-  energy via `run_gat_energy` (synthetic by default).
+  {single,walk-forward} --loss {ic,mse} --device {cpu,cuda,auto} --persist`;
+  energy via `run_gat_energy` (synthetic or `source="entsoe"`).
+- **Warehouse / dbt.** `--persist` (or `persist_gat_outputs`) writes four tables
+  to DuckDB; the dbt models `stg_gat_panel`, `fct_gat_vs_baseline` (tiered
+  relational A/B), and `fct_gat_scorecard` (one-row gates + attention A/B)
+  surface the results for querying/BI. duckdb + dbt live in a venv at
+  `D:\duckdb` (kept off the C: drive); the GAT pipeline itself needs no duckdb.
+  Run: `dbt run/test --profiles-dir . --select fct_gat_vs_baseline
+  fct_gat_scorecard` from `dbt_quant_alpha/`.
 
 ---
 
