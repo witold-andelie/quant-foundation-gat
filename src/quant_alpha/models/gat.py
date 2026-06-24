@@ -1,0 +1,499 @@
+"""GAT composite-alpha model (the torch network and its training loop).
+
+This is the M2 modelling layer and the only torch-dependent module in the
+project; it lives behind the ``[gnn]`` extra. The factor pipeline never imports
+it eagerly — it reaches the trained network through the torch-free
+``graph/propagate.py::GATPropagator`` adapter on the propagate seam.
+
+Role within the established architecture:
+    - features/   : the existing 10 equity + 8 energy alphas are the node
+                    features (model input), not competitors to this model.
+    - graph/      : the propagate seam and its pandas adapters. The trained
+                    ``GATModel`` here is wrapped by ``GATPropagator`` so a
+                    ``GraphFactorProvider`` can emit a relational composite alpha.
+    - backtest/   : the composite score this model produces is fed to the
+                    existing walk-forward IC and the four research gates.
+
+Pipeline (as fixed in ADR-0001..0003):
+    input   : one snapshot t, nodes = instruments, features = the alpha values
+              at t (history only)
+    graph   : the relation graph at t (sector / historical correlation /
+              liquidity), built from data at or before t
+    output  : one composite score per node
+    label   : forward_return(t+k), cross-sectionally standardised, supervision
+              only, never a feature
+    loss    : MSE to bring the pipeline up, then IC loss to align with RankIC
+    splits  : walk-forward + embargo (>= k), matching backtest/ for leakage safety
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Iterable, Iterator
+
+import numpy as np
+import pandas as pd
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch.utils.data import Dataset
+
+from quant_alpha.graph.propagate import Topology, tidy_attention_frame
+from quant_alpha.graph.training import (
+    cross_sectional_label,
+    cross_sectional_median_fill,
+    is_constrained_split,
+)
+
+try:
+    from torch_geometric.nn import GATConv
+except ImportError:  # pragma: no cover
+    GATConv = None
+
+
+# --------------------------------------------------------------------------- #
+# Config — mirrors the configs/ YAML convention; can be injected from
+# second_foundation_project.yaml.
+# --------------------------------------------------------------------------- #
+@dataclass
+class GATConfig:
+    in_dim: int                 # number of input alphas (equity 10 / energy 8)
+    hidden_dim: int = 64
+    heads: int = 4
+    num_layers: int = 2
+    dropout: float = 0.1
+    forward_k: int = 10         # forward_return horizon; embargo must be >= this
+    lr: float = 1e-3
+    weight_decay: float = 1e-5
+    epochs: int = 50
+
+
+# --------------------------------------------------------------------------- #
+# Data — one snapshot is one sample.
+# --------------------------------------------------------------------------- #
+@dataclass
+class CrossSection:
+    """A single snapshot t. x / edge_index use data at or before t; label uses t+k."""
+
+    t: int                      # integer position, used only for ordering/splits
+    x: torch.Tensor             # [N, F] node features = alpha matrix at t
+    edge_index: torch.Tensor    # [2, E] relation graph at t (history only)
+    label: torch.Tensor         # [N] forward_return, cross-sectionally standardised
+    mask: torch.Tensor          # [N] bool, valid instruments (drop halted/missing/new)
+    symbols: list[str] | None = None  # instrument codes, for backtest alignment
+    time: object = None         # the real date/timestamp, for (date, symbol) alignment
+
+
+class FactorGraphDataset(Dataset):
+    """Alpha panel organised as a time-ordered sequence of snapshots.
+
+    The caller (a builder; see ``build_sections``) must guarantee that x and
+    edge_index use only data at or before t, that label is forward_return over
+    close[t+k]/close[t]-1 standardised cross-sectionally, and that snapshots are
+    ascending in t — the walk-forward split relies on that order.
+    """
+
+    def __init__(self, sections: list[CrossSection]):
+        self.sections = sorted(sections, key=lambda s: s.t)
+
+    def __len__(self) -> int:
+        return len(self.sections)
+
+    def __getitem__(self, idx: int) -> CrossSection:
+        return self.sections[idx]
+
+
+def build_sections(
+    panel: pd.DataFrame,
+    topology_for,
+    feature_cols: tuple[str, ...],
+    k: int,
+    price_col: str = "adj_close",
+    label_method: str = "zscore",
+    label_fn=None,
+) -> list[CrossSection]:
+    """Bridge a ``(time, entity)`` alpha panel into a list of CrossSection.
+
+    Reuses the torch-free leakage-safe label from graph/training.py and the same
+    topology source a GraphFactorProvider uses. A node is masked out when any of
+    its features or its label is missing. ``label_fn(panel, k, price_col)``
+    overrides the default equity price-ratio label — the energy track passes
+    ``energy_cross_sectional_label`` (floored hourly return), so the same
+    section builder serves both tracks.
+    """
+    panel = panel.sort_index()
+    if label_fn is None:
+        label = cross_sectional_label(panel, k=k, price_col=price_col, method=label_method)
+    else:
+        label = label_fn(panel, k=k, price_col=price_col)
+    panel = cross_sectional_median_fill(panel, tuple(feature_cols))
+
+    sections: list[CrossSection] = []
+    for t, (time, cross) in enumerate(panel.groupby(level=0)):
+        nodes = list(cross.index.get_level_values(1))
+        position = {node: i for i, node in enumerate(nodes)}
+
+        x_np = cross[list(feature_cols)].to_numpy(dtype="float32")
+        y_np = label.loc[cross.index].to_numpy(dtype="float32")
+        valid = np.isfinite(x_np).all(axis=1) & np.isfinite(y_np)
+
+        topology: Topology = topology_for(time)
+        edges = [
+            (position[s], position[d])
+            for (s, d, _w) in topology.edges
+            if s in position and d in position
+        ]
+        if edges:
+            edge_index = torch.tensor(edges, dtype=torch.long).t().contiguous()
+        else:
+            edge_index = torch.empty((2, 0), dtype=torch.long)
+
+        sections.append(
+            CrossSection(
+                t=t,
+                x=torch.from_numpy(np.nan_to_num(x_np)),
+                edge_index=edge_index,
+                label=torch.from_numpy(np.nan_to_num(y_np)),
+                mask=torch.from_numpy(valid),
+                symbols=nodes,
+                time=time,
+            )
+        )
+    return sections
+
+
+# --------------------------------------------------------------------------- #
+# Leakage-safe split — walk-forward + embargo, same discipline as backtest/.
+# (Rolling folds live in graph/training.py::walk_forward_splits; this is the
+#  single train/valid/test split a training run uses.)
+# --------------------------------------------------------------------------- #
+def time_ordered_split(
+    n: int,
+    train_ratio: float = 0.7,
+    valid_ratio: float = 0.15,
+    embargo: int = 0,
+) -> tuple[range, range, range]:
+    """Strict time order, never shuffled. ``embargo`` should be >= forward_k so a
+    train label window cannot overlap the next split's features."""
+    n_train = int(n * train_ratio)
+    n_valid = int(n * valid_ratio)
+    train = range(0, n_train)
+    valid = range(n_train + embargo, n_train + embargo + n_valid)
+    test = range(n_train + embargo + n_valid + embargo, n)
+    return train, valid, test
+
+
+def _subset(ds: FactorGraphDataset, idx: range) -> Iterator[CrossSection]:
+    for i in idx:
+        yield ds[i]
+
+
+def _dataset_to_device(ds: FactorGraphDataset, device) -> None:
+    """Move every section's tensors to ``device`` once, in place.
+
+    The train/eval loops call ``.to(device)`` per snapshot per epoch; with the
+    dataset pre-moved those calls are no-ops, which is what makes small-graph
+    GPU training worthwhile (otherwise per-snapshot host->device transfers
+    dominate). Idempotent — safe across walk-forward refits on the same ds.
+    """
+    for sec in ds.sections:
+        sec.x = sec.x.to(device)
+        sec.edge_index = sec.edge_index.to(device)
+        sec.label = sec.label.to(device)
+        sec.mask = sec.mask.to(device)
+
+
+# --------------------------------------------------------------------------- #
+# Model.
+# --------------------------------------------------------------------------- #
+class GATModel(nn.Module):
+    """Stacked GAT over the snapshot graph; one scalar composite alpha per node."""
+
+    def __init__(self, cfg: GATConfig):
+        super().__init__()
+        assert GATConv is not None, "torch_geometric is required (install the [gnn] extra)"
+        self.cfg = cfg
+        h, heads = cfg.hidden_dim, cfg.heads
+
+        self.layers = nn.ModuleList()
+        if cfg.num_layers >= 2:
+            self.layers.append(GATConv(cfg.in_dim, h, heads=heads, dropout=cfg.dropout))
+            for _ in range(cfg.num_layers - 2):
+                self.layers.append(GATConv(h * heads, h, heads=heads, dropout=cfg.dropout))
+            last_in = h * heads
+        else:
+            last_in = cfg.in_dim
+        self.head = GATConv(last_in, 1, heads=1, concat=False, dropout=cfg.dropout)
+
+    def forward(self, x: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
+        for layer in self.layers:
+            x = F.elu(layer(x, edge_index))
+            x = F.dropout(x, p=self.cfg.dropout, training=self.training)
+        return self.head(x, edge_index).squeeze(-1)  # [N]
+
+    def forward_with_attention(
+        self, x: torch.Tensor, edge_index: torch.Tensor
+    ) -> tuple[torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
+        """Forward pass that also returns the head layer's attention.
+
+        The second element is PyG's ``(edge_index, alpha)`` pair for the final
+        (composite-emitting) layer — ``edge_index`` includes the self-loops PyG
+        adds, ``alpha`` is ``[E, heads]``. This feeds the M4 attention story
+        via ``GATPropagator.last_attention``.
+        """
+        for layer in self.layers:
+            x = F.elu(layer(x, edge_index))
+            x = F.dropout(x, p=self.cfg.dropout, training=self.training)
+        out, attention = self.head(x, edge_index, return_attention_weights=True)
+        return out.squeeze(-1), attention
+
+
+# --------------------------------------------------------------------------- #
+# Losses — MSE to bring the pipeline up, then IC loss to align with RankIC.
+# --------------------------------------------------------------------------- #
+def mse_loss(pred: torch.Tensor, label: torch.Tensor) -> torch.Tensor:
+    return F.mse_loss(pred, label)
+
+
+def ic_loss(pred: torch.Tensor, label: torch.Tensor, eps: float = 1e-8) -> torch.Tensor:
+    """Within-snapshot negative Pearson IC. RankIC needs a differentiable soft
+    rank; Pearson is the first step."""
+    p = pred - pred.mean()
+    y = label - label.mean()
+    ic = (p * y).sum() / (p.norm() * y.norm() + eps)
+    return -ic
+
+
+# --------------------------------------------------------------------------- #
+# Train / evaluate.
+# --------------------------------------------------------------------------- #
+@torch.no_grad()
+def evaluate_ic(model: nn.Module, sections: Iterable[CrossSection], device) -> float:
+    """Mean per-snapshot IC, matching the backtest/ walk-forward IC convention."""
+    model.eval()
+    ics = []
+    for sec in sections:
+        if int(sec.mask.sum()) < 2:  # need >= 2 nodes for a cross-sectional IC
+            continue
+        pred = model(sec.x.to(device), sec.edge_index.to(device))[sec.mask]
+        ics.append(-ic_loss(pred, sec.label.to(device)[sec.mask]).item())
+    return sum(ics) / max(len(ics), 1)
+
+
+def train_one_epoch(model, sections, optimizer, device, loss_fn) -> float:
+    model.train()
+    total, n = 0.0, 0
+    for sec in sections:
+        if int(sec.mask.sum()) < 2:  # skip warmup / empty cross-sections
+            continue
+        pred = model(sec.x.to(device), sec.edge_index.to(device))[sec.mask]
+        loss = loss_fn(pred, sec.label.to(device)[sec.mask])
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        total += loss.item()
+        n += 1
+    return total / max(n, 1)
+
+
+def fit(
+    ds: FactorGraphDataset,
+    cfg: GATConfig,
+    device=None,
+    loss_fn=mse_loss,
+    out_path: str = "data/warehouse/gat_best.pt",
+    train_idx: range | None = None,
+    valid_idx: range | None = None,
+) -> GATModel:
+    """Train, select the best-by-valid-IC epoch, and return that model.
+
+    ``out_path`` always holds the state_dict of the returned model. Callers
+    that also evaluate an OOS window (run_gat_equity) must pass
+    ``train_idx``/``valid_idx`` constrained to the in-sample window
+    (``graph.training.is_constrained_split``) so model selection never sees
+    OOS data; the default ``time_ordered_split`` fallback is for standalone
+    training only. When valid has no usable snapshot, selection is skipped and
+    the final-epoch model is returned.
+
+    Start with the default ``mse_loss`` to confirm the loss falls and there is
+    no leak (see ``tests/test_leakage.py``); switch to ``ic_loss`` once the
+    pipeline is validated.
+    """
+    device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if train_idx is None or valid_idx is None:
+        train_idx, valid_idx, _ = time_ordered_split(len(ds), embargo=cfg.forward_k)
+
+    _dataset_to_device(ds, device)
+    model = GATModel(cfg).to(device)
+    opt = torch.optim.Adam(model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
+
+    valid_usable = [i for i in valid_idx if int(ds[i].mask.sum()) >= 2]
+    if not valid_usable:
+        print("fit: no usable valid snapshot — best-epoch selection skipped")
+
+    best_ic = float("-inf")
+    best_state: dict | None = None
+    for ep in range(cfg.epochs):
+        tr = train_one_epoch(model, _subset(ds, train_idx), opt, device, loss_fn)
+        va = (
+            evaluate_ic(model, (ds[i] for i in valid_usable), device)
+            if valid_usable
+            else float("nan")
+        )
+        print(f"epoch {ep:02d}  train_loss={tr:.4f}  valid_IC={va:.4f}")
+        if valid_usable and va > best_ic:
+            best_ic = va
+            best_state = {k: v.detach().clone() for k, v in model.state_dict().items()}
+
+    if best_state is not None:
+        model.load_state_dict(best_state)
+    # sklearn-style fitted attribute: the valid IC of the returned weights.
+    # HP selection must use this (in-sample), never OOS metrics.
+    model.best_valid_ic_ = best_ic if best_state is not None else float("nan")
+    torch.save(model.state_dict(), out_path)
+    return model
+
+
+@torch.no_grad()
+def _score_sections(
+    model: GATModel, ds: FactorGraphDataset, idx: Iterable[int], device, name: str
+) -> list[pd.Series]:
+    """One ``(date, symbol)``-indexed series per snapshot in ``idx`` (from
+    ``CrossSection.time`` and ``.symbols``, never reconstructed)."""
+    model.eval()
+    parts: list[pd.Series] = []
+    for i in idx:
+        sec = ds[i]
+        score = model(sec.x.to(device), sec.edge_index.to(device)).cpu().numpy()
+        index = pd.MultiIndex.from_arrays(
+            [[sec.time] * len(sec.symbols), sec.symbols], names=["date", "symbol"]
+        )
+        parts.append(pd.Series(score, index=index, name=name))
+    return parts
+
+
+def composite_series(
+    model: GATModel,
+    ds: FactorGraphDataset,
+    device=None,
+    name: str = "alpha_gat_composite",
+) -> pd.Series:
+    """The GAT composite as one ``(date, symbol)``-indexed column.
+
+    This is the four-gates interface: the score is emitted on the same
+    ``(date, symbol)`` index the alpha panel uses, so it can be appended as one
+    more column and handed to ``evaluate_alpha_suite`` — which does the IS/OOS
+    split itself, keeping Consistency aligned with the single factors. Scored
+    over all snapshots; the honest read is the OOS slice that
+    ``evaluate_alpha_suite`` reports.
+    """
+    device = device or next(model.parameters()).device  # follow the trained model
+    parts = _score_sections(model, ds, range(len(ds)), device, name)
+    return pd.concat(parts) if parts else pd.Series(name=name, dtype=float)
+
+
+@torch.no_grad()
+def attention_panel(
+    model: GATModel, ds: FactorGraphDataset, device=None
+) -> pd.DataFrame:
+    """Head-layer attention for every snapshot as a tidy ``(date, src, dst,
+    weight)`` frame — the M4 analysis input.
+
+    The same node mapping as ``composite_series`` (symbols from
+    ``CrossSection.symbols``), so attention rows align to the alpha panel.
+    ``weight`` into each ``dst`` softmaxes over that node's in-neighbourhood
+    (incl. the self-loop), summing to 1. Snapshots whose graph has no edges
+    (early dates under a dynamic graph) contribute nothing."""
+    device = device or next(model.parameters()).device
+    model.eval()
+    frames: list[pd.DataFrame] = []
+    for sec in ds:
+        if sec.edge_index.numel() == 0:
+            continue
+        _out, (att_edges, alpha) = model.forward_with_attention(
+            sec.x.to(device), sec.edge_index.to(device)
+        )
+        frame = tidy_attention_frame(att_edges, alpha, list(sec.symbols))
+        frame.insert(0, "date", sec.time)
+        frames.append(frame)
+    if not frames:
+        return pd.DataFrame(columns=["date", "src", "dst", "weight"])
+    return pd.concat(frames, ignore_index=True)
+
+
+def walk_forward_composite_series(
+    ds: FactorGraphDataset,
+    cfg: GATConfig,
+    n_is: int,
+    *,
+    oos_chunk: int = 63,
+    device=None,
+    loss_fn=mse_loss,
+    out_path: str = "data/warehouse/gat_wf.pt",
+    name: str = "alpha_gat_composite",
+) -> pd.Series:
+    """The composite scored by walk-forward refits instead of one frozen model.
+
+    At every fold boundary the model is refit from scratch on all snapshots
+    whose labels predate the boundary (``is_constrained_split(boundary,
+    embargo=forward_k)`` — same leakage layout as the single fit, valid at the
+    window's end), then scores only the next ``oos_chunk`` snapshots. So every
+    OOS score comes from a model that was trainable at that date in deployment,
+    and the model refreshes as regimes shift — the adaptivity upgrade the
+    valid->OOS IC decay motivates. The first fold's model also scores the
+    in-sample region so IS diagnostics stay comparable. ``out_path`` ends up
+    holding the last fold's selected weights.
+    """
+    device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    boundaries = list(range(n_is, len(ds), oos_chunk)) or [n_is]
+    parts: list[pd.Series] = []
+    for fold, start in enumerate(boundaries):
+        stop = min(start + oos_chunk, len(ds))
+        train_idx, valid_idx = is_constrained_split(start, embargo=cfg.forward_k)
+        print(f"walk-forward fold {fold:02d}: train/valid < {start}, score [{start}, {stop})")
+        model = fit(
+            ds, cfg, device=device, loss_fn=loss_fn, out_path=out_path,
+            train_idx=train_idx, valid_idx=valid_idx,
+        )
+        if fold == 0:
+            parts.extend(_score_sections(model, ds, range(0, min(n_is, len(ds))), device, name))
+        parts.extend(_score_sections(model, ds, range(start, stop), device, name))
+    return pd.concat(parts) if parts else pd.Series(name=name, dtype=float)
+
+
+@torch.no_grad()
+def predict_panel(
+    model: GATModel, ds: FactorGraphDataset, idx: range, device
+) -> dict[int, dict[str, float]]:
+    """Composite alpha scores as {t: {symbol: score}} for the backtest layer to
+    run long-short + walk-forward IC + the four gates."""
+    model.eval()
+    out: dict[int, dict[str, float]] = {}
+    for i in idx:
+        sec = ds[i]
+        score = model(sec.x.to(device), sec.edge_index.to(device)).cpu()
+        syms = sec.symbols or [str(j) for j in range(len(score))]
+        out[sec.t] = {s: float(v) for s, v, m in zip(syms, score, sec.mask) if m}
+    return out
+
+
+# --------------------------------------------------------------------------- #
+# Research-gate hooks (see docs/alpha_research.md):
+#   Value-added : predict_panel -> backtest composite OOS Sharpe > best single factor
+#   Consistency : IS IC and OOS IC same sign and comparable magnitude
+#   Computed by the existing backtest/ module; only the interface point is marked
+#   here, not re-implemented.
+#
+# Leakage self-check (run before trusting any result):
+#   Shuffle each snapshot's label across nodes, retrain; valid IC should be ~0.
+#   If it stays clearly positive, future information leaked into the features or
+#   the graph — audit the section builder.
+# --------------------------------------------------------------------------- #
+if __name__ == "__main__":
+    # sections = build_sections(panel, topology_for, feature_cols, k=10)
+    sections: list[CrossSection] = []
+    ds = FactorGraphDataset(sections)
+    if len(ds) == 0:
+        raise SystemExit("Provide sections: convert the alpha panel via build_sections().")
+    cfg = GATConfig(in_dim=ds[0].x.shape[1])
+    fit(ds, cfg)

@@ -1,0 +1,86 @@
+{
+  "static_single": {
+    "elapsed_s": 267.1,
+    "gate_report": {
+      "composite_oos_ic_mean": -0.009269748419131718,
+      "composite_oos_ic_ir": -0.04109581741825059,
+      "value_added": {
+        "composite_oos_sharpe": -1.2605642232185688,
+        "best_single_oos_sharpe": -0.40910371264286005,
+        "sharpe_value_added": -0.8514605105757087,
+        "passed": false
+      },
+      "consistency": {
+        "is_oos_ic_same_sign": false,
+        "consistency_score": 0.4,
+        "passed": false
+      },
+      "uniqueness": {
+        "max_abs_corr_vs_single": 0.461276832807318,
+        "passed": true
+      },
+      "robustness": {
+        "robustness_score": 0.61977504362616,
+        "passed": true
+      }
+    },
+    "ab_report": {
+      "gat": {
+        "oos_ic_mean": -0.009269748419131718,
+        "oos_sharpe": -1.2605642232185688
+      },
+      "uniform_mean": {
+        "oos_ic_mean": 0.004108887508149009,
+        "oos_sharpe": -0.5234759954154713
+      },
+      "island_mean": {
+        "oos_ic_mean": 0.0016177878891715204,
+        "oos_sharpe": -0.4991356453929707
+      },
+      "attention_sharpe_value_add": -0.7370882278030975,
+      "gat_uniform_spearman": -0.6114485508353373
+    }
+  },
+  "static_wf": {
+    "elapsed_s": 466.7,
+    "gate_report": {
+      "composite_oos_ic_mean": -0.011339286087379344,
+      "composite_oos_ic_ir": -0.05001902925900755,
+      "value_added": {
+        "composite_oos_sharpe": -1.1110818211830022,
+        "best_single_oos_sharpe": -0.40910371264286005,
+        "sharpe_value_added": -0.7019781085401422,
+        "passed": false
+      },
+      "consistency": {
+        "is_oos_ic_same_sign": false,
+        "consistency_score": 0.4,
+        "passed": false
+      },
+      "uniqueness": {
+        "max_abs_corr_vs_single": 0.4025242136414527,
+        "passed": true
+      },
+      "robustness": {
+        "robustness_score": 0.6504402020325027,
+        "passed": true
+      }
+    },
+    "ab_report": {
+      "gat": {
+        "oos_ic_mean": -0.011339286087379344,
+        "oos_sharpe": -1.1110818211830022
+      },
+      "uniform_mean": {
+        "oos_ic_mean": 0.004108887508149009,
+        "oos_sharpe": -0.5234759954154713
+      },
+      "island_mean": {
+        "oos_ic_mean": 0.0016177878891715204,
+        "oos_sharpe": -0.4991356453929707
+      },
+      "attention_sharpe_value_add": -0.587605825767531,
+      "gat_uniform_spearman": -0.5468135288454951
+    }
+  }
+}

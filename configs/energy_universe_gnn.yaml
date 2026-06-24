@@ -1,0 +1,68 @@
+name: european_power_gnn
+timezone: Europe/Brussels
+asset_class: power_spot
+
+# The ~20 bidding zones of the interconnector graph (graph/edges_energy.py).
+# entsoe_domains are ENTSO-E EIC bidding-zone codes used by the A44/A65/A69
+# day-ahead price / load / generation-forecast queries.
+#
+# All 20 EIC codes LIVE-VALIDATED against the ENTSO-E API on 2026-06-11
+# (20/20 zones returned day-ahead price + load/wind/solar data over a test
+# window). A wrong code would return an empty series and the zone would be
+# silently skipped (run_gat_energy tolerates a partial universe), but none did.
+markets:
+  - DE_LU
+  - FR
+  - NL
+  - BE
+  - AT
+  - CH
+  - CZ
+  - PL
+  - DK1
+  - DK2
+  - NO2
+  - SE3
+  - SE4
+  - IT_NORD
+  - ES
+  - PT
+  - SI
+  - SK
+  - HU
+  - FI
+
+entsoe_domains:
+  DE_LU: 10Y1001A1001A82H      # verified (original config)
+  CZ: 10YCZ-CEPS-----N         # verified (original config)
+  FR: 10YFR-RTE------C         # verified (original config)
+  NL: 10YNL----------L
+  BE: 10YBE----------2
+  AT: 10YAT-APG------L
+  CH: 10YCH-SWISSGRIDZ
+  PL: 10YPL-AREA-----S
+  DK1: 10YDK-1--------W
+  DK2: 10YDK-2--------M
+  NO2: 10YNO-2--------T
+  SE3: 10Y1001A1001A46L
+  SE4: 10Y1001A1001A47J
+  IT_NORD: 10Y1001A1001A73I
+  ES: 10YES-REE------0
+  PT: 10YPT-REN------W
+  SI: 10YSI-ELES-----O
+  SK: 10YSK-SEPS-----K
+  HU: 10YHU-MAVIR----U
+  FI: 10YFI-1--------U
+
+features:
+  - spot_price
+  - load_forecast
+  - wind_forecast
+  - solar_forecast
+  - residual_load
+  - imbalance_price
+# NOTE: ENTSO-E supplies spot/load/wind/solar; residual_load is derived and
+# imbalance_price is synthesised from a scarcity rank (ingestion/entsoe.py).
+# gas_price is NOT an ENTSO-E series, so alpha_energy_gas_spark_spread is NaN
+# on real data (7 of 8 alphas compute; the GAT median-fills the gap). Wire a
+# gas feed later if the spark-spread alpha is wanted.

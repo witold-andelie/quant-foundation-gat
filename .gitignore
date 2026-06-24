@@ -1,0 +1,45 @@
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfvars
+!*.tfvars.example
+
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.venv/
+*.egg-info/
+
+data/raw/
+data/processed/
+# data/warehouse/  ← committed for Streamlit Cloud demo (20 MB total)
+dbt_*/target/
+dbt_*/logs/
+dbt_*/.user.yml
+
+.DS_Store
+
+.env
+!.env.example
+.streamlit/secrets.toml
+*.duckdb.wal
+node_modules/
+.idea/
+.vscode/
+
+# local agent workspaces
+.codegraph/
+.scratch/
+
+# transient experiment weights (canonical gat_equity.pt stays tracked)
+data/warehouse/gat_seed_*.pt
+data/warehouse/gat_bench_*.pt
+data/warehouse/gat_static_*.pt
+data/warehouse/gat_dynamic_*.pt
+data/warehouse/gat_attention.pt
+data/warehouse/gat_energy*.pt
+data/warehouse/_shuf.pt
+data/warehouse/gat_energy_daily.pt
+data/warehouse/_honest.pt

@@ -1,0 +1,57 @@
+version: 2
+
+models:
+  - name: fct_alpha_panel
+    description: "Research mart containing alpha scores and future returns."
+    columns:
+      - name: signal_date
+        tests:
+          - not_null
+      - name: symbol
+        tests:
+          - not_null
+      - name: alpha_composite
+        tests:
+          - not_null
+
+  - name: fct_backtest_daily
+    description: "Daily long-short factor backtest returns."
+    columns:
+      - name: signal_date
+        tests:
+          - not_null
+      - name: equity_curve
+        tests:
+          - not_null
+
+  - name: fct_alpha_diagnostics
+    description: "IS/OOS diagnostics for each individual alpha expression."
+    columns:
+      - name: alpha_name
+        tests:
+          - not_null
+      - name: consistency_score
+        tests:
+          - not_null
+
+  - name: fct_gat_vs_baseline
+    description: "Relational A/B — every alpha tagged by tier (relational_gat / relational_unlearned / island_mean / island_single) with OOS metrics, for the GAT-vs-baseline comparison."
+    columns:
+      - name: alpha_name
+        tests:
+          - not_null
+      - name: tier
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['relational_gat', 'relational_unlearned', 'island_mean', 'island_single']
+
+  - name: fct_gat_scorecard
+    description: "One-row GAT composite scorecard: four gates, value-add over best single, and the attention A/B vs uniform/island anchors."
+    columns:
+      - name: gates_passed
+        tests:
+          - not_null
+      - name: attention_sharpe_value_add
+        tests:
+          - not_null
