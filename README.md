@@ -12,30 +12,35 @@ A Second Foundation-inspired quantitative energy research platform with a parall
 ## Architecture
 
 ```
-ENTSO-E API / Yahoo Finance / Synthetic
+ENTSO-E API · Yahoo Finance · Synthetic
         │
         ▼
-   dlt incremental ingestion  ──────────────────────────────► DuckDB raw layer
-        │                                                           │
-        ▼                                                           ▼
-   Kestra orchestration                               Bruin asset graph (M5)
-        │                                                           │
-        ▼                                                           ▼
-   Raw Parquet (data lake)  ──────────────► GCS bucket (cloud)   dbt staging
-        │                                                           │
-        ▼                                                           ▼
-   Python factor engine → alpha panel ──────────────────────► dbt marts
-        │                                                           │
-        ▼                                                           ▼
-   DuckDB warehouse  ──────────────────────────────────► BigQuery (cloud)
-        │                │
-        ▼                ▼
-   Spark batch     Redpanda / RisingWave (streaming SQL)
-        │                │
-        └────────────────┘
-                 │
-                 ▼
-        Streamlit research dashboard
+   dlt incremental ingestion ──► DuckDB raw layer ──► GCS / BigQuery (cloud)
+        │
+        ▼
+   Kestra orchestration · Bruin asset graph (M5) ──► dbt staging → marts
+        │
+        ▼
+   Python factor engine → (time, entity) panel
+        │
+        ▼
+   Factor / Provider seam
+     • island factors — expression, WorldQuant-style
+     • relational factors — GNN/GAT capstone:
+         topology: correlation graph (equity) / interconnector graph (energy)
+         → Propagator seam → UniformMean | GAT  (PyG | pure-torch)
+         → composite + four research gates + attention A/B → fct_gat_* marts
+        │
+        ▼
+   Energy forecasting (forecast/) — skill-vs-persistence ladder:
+     persistence → seasonal → no-graph ridge → uniform-graph → GAT
+     (node price level  +  edge-level cross-border spread)
+        │
+        ▼
+   DuckDB warehouse · Spark batch · Redpanda / RisingWave (streaming SQL)
+        │
+        ▼
+   Streamlit research dashboard
 ```
 
 ## Zoomcamp Module Coverage
