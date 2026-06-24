@@ -1,7 +1,7 @@
 [project]
 name = "quant-alpha-foundation"
 version = "0.1.0"
-description = "A Data Engineering Zoomcamp-inspired quantitative alpha research pipeline."
+description = "A Data Engineering Zoomcamp-inspired quantitative alpha research platform with a GNN/GAT relational-factor capstone and energy price/spread forecasting."
 requires-python = ">=3.10"
 dependencies = [
     "fastavro>=1.9.4",

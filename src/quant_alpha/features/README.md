@@ -2,6 +2,8 @@
 
 This module implements the full factor computation stack: an expression registry, cross-sectional operators, and the compute pipeline for both equity and energy universes.
 
+The factors below are **island factors** (each node scored from its own data). A unified `Factor` / `FactorProvider` seam (`factor.py`) also lets *relational* factors — scored by propagating over a graph — plug in identically; see the GNN/GAT capstone in [docs/gnn_capstone_design.md](../../../docs/gnn_capstone_design.md) and the energy forecasting study in [docs/energy_forecasting.md](../../../docs/energy_forecasting.md).
+
 ## Design Principles
 
 Each factor must satisfy four gates before being included in the composite:

@@ -6,8 +6,10 @@ A Second Foundation-inspired quantitative energy research platform with a parall
 
 | Track | Universe | Factors | Data Source |
 |---|---|---|---|
-| Second Foundation Energy | European power markets | 8 energy alphas | ENTSO-E / synthetic |
-| US Equities Demo | Configurable equity universe | 10 equity alphas | Yahoo Finance / synthetic |
+| Second Foundation Energy | European power markets | 8 island alphas + relational (GAT) + price/spread forecasting | ENTSO-E / synthetic |
+| US Equities Demo | Configurable equity universe | 10 island alphas + relational (GAT) | Yahoo Finance / synthetic |
+
+Both tracks share one GAT kernel for **relational factors**; the energy track adds a leakage-controlled **price/spread forecasting** study — see [Relational Factors & Energy Forecasting](#relational-factors--energy-forecasting-gnngat).
 
 ## Architecture
 
@@ -196,8 +198,9 @@ cd dbt_energy_alpha && dbt build --profiles-dir .     # energy marts
 | Module | README |
 |---|---|
 | Data ingestion (Yahoo Finance, ENTSO-E, dlt, synthetic) | [src/quant_alpha/ingestion/README.md](src/quant_alpha/ingestion/README.md) |
-| Alpha factor engine (10 equity + 8 energy factors) | [src/quant_alpha/features/README.md](src/quant_alpha/features/README.md) |
+| Alpha factor engine (10 equity + 8 energy island factors + relational seam) | [src/quant_alpha/features/README.md](src/quant_alpha/features/README.md) |
 | Backtesting (long-short, decay, walk-forward) | [src/quant_alpha/backtest/README.md](src/quant_alpha/backtest/README.md) |
+| Energy forecasting (price/spread skill ladder + GAT, Phase 0–3) | [src/quant_alpha/forecast/README.md](src/quant_alpha/forecast/README.md) |
 | Streaming (Redpanda + RisingWave) | [src/quant_alpha/streaming/README.md](src/quant_alpha/streaming/README.md) |
 | Storage (DuckDB, GCS, BigQuery) | [src/quant_alpha/storage/README.md](src/quant_alpha/storage/README.md) |
 | Batch processing (Spark) | [src/quant_alpha/batch/README.md](src/quant_alpha/batch/README.md) |
