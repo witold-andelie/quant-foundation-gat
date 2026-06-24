@@ -89,6 +89,8 @@ CARDS = [
      "tagline": "Bruin lineage · table inventory · quality · null rates"},
     {"icon": "📊", "title": "Cross-Track Overview", "page": "pages/7_Overview.py",
      "tagline": "Energy + Equity side-by-side · 11-module health matrix"},
+    {"icon": "🕸️", "title": "GAT & Forecasting",   "page": "pages/8_GAT_Forecasting.py",
+     "tagline": "Relational factors · skill ladder · edge-level spread · E14 findings"},
 ]
 
 def _render_card(card: dict):
@@ -121,9 +123,9 @@ for col, card in zip(row1, CARDS[:4]):
     with col:
         _render_card(card)
 
-# Row 2: 3 cards (last column intentionally empty for visual balance)
+# Row 2: 4 cards
 row2 = st.columns(4)
-for col, card in zip(row2[:3], CARDS[4:]):
+for col, card in zip(row2, CARDS[4:]):
     with col:
         _render_card(card)
 

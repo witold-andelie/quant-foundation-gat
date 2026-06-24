@@ -1,0 +1,7 @@
+finding,comparison,skill_delta,seeds,verdict
+Graph helps price level,uniform - no-graph,+0.131,control-validated,robust
+Attention vs uniform (ranking),gat rank_ic - uniform,+0.031,5/5,robust
+Attention vs uniform (skill),gat - uniform,-0.008,2/5,wash
+Congestion edge feature (price-spread proxy),gat_congestion - gat_node,-0.002,2/5,null
+Congestion edge feature (real flow/NTC),flow - node,-0.005,1/5,null
+Edge-level spread (message passing),edge_gat - edge_ridge,+0.056,5/5,robust *

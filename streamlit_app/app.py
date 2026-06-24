@@ -64,10 +64,12 @@ market_data = st.Page("pages/4_Market_Data.py", title="Market Data", icon="⚡")
 live_streaming = st.Page("pages/5_Live_Streaming.py", title="Live Streaming", icon="🔴")
 data_pipeline = st.Page("pages/6_Data_Pipeline.py", title="Data Pipeline", icon="🔧")
 overview = st.Page("pages/7_Overview.py", title="Cross-Track Overview", icon="📊")
+gat_forecasting = st.Page("pages/8_GAT_Forecasting.py", title="GAT & Forecasting", icon="🕸️")
 
 pg = st.navigation({
     " ": [home],
     "Research": [performance, factor_research, alpha_decay, market_data],
+    "Capstone (GNN/GAT)": [gat_forecasting],
     "Operations": [live_streaming, data_pipeline, overview],
 })
 pg.run()

@@ -1,0 +1,7 @@
+metric,value,note
+Gates passed,3 / 4,Uniqueness + Consistency + Robustness pass; Value-added fails
+Attention value-add,30/30 seeds positive,vs the uniform anchor (no learned attention)
+Composite OOS IC (best epoch),0.0756,best-by-valid-IC checkpoint selection
+Composite OOS Sharpe,1.42,vs best single 2.88 (beats 9 of 10 single factors)
+Graph,correlation top-k (~50 names + GICS sectors),estimated backbone (not physical)
+Data,real yfinance 2021->2024,49 names; IC loss; 50 epochs

@@ -9,7 +9,7 @@ Multi-page Streamlit app for exploring alpha factor research, backtest performan
 | `app.py` | Entry point — `st.set_page_config`, explicit page registration via `st.Page()` + `st.navigation()` |
 | `home.py` | Home page content — top metrics, 7 clickable navigation cards, Quick Actions |
 | `common.py` | Shared utilities — DuckDB/BigQuery loaders, table catalogs, track selector |
-| `pages/N_*.py` | 7 deep-dive pages (auto-loaded via `st.navigation`) |
+| `pages/N_*.py` | 8 deep-dive pages (registered via `st.navigation`) |
 
 ## Pages
 
@@ -23,6 +23,7 @@ Multi-page Streamlit app for exploring alpha factor research, backtest performan
 | 5 | Live Streaming | Redpanda signal buffer status, fundamentals timeline, RisingWave simulator (one-click), real-time alpha percentile heatmap, scarcity alerts (HIGH/MEDIUM/LOW) |
 | 6 | Data Pipeline | DuckDB table inventory + row counts, Bruin asset graph (lineage explorer), data quality + null-rate analysis, dlt load history, Kestra flow inventory |
 | 7 | Cross-Track Overview | Energy/Equity metrics side-by-side, 11-module Zoomcamp coverage matrix, alpha family pies, cross-track diagnostics comparison |
+| 8 | GAT & Forecasting | GNN/GAT capstone — energy price/spread forecast skill ladders (node + edge-level), E14 findings table (robust wins + honest nulls), equity GAT scorecard. Reads `docs/results/*.csv` + equity GAT marts |
 
 ## Starting the Dashboard
 
