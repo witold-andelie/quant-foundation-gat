@@ -29,7 +29,8 @@ The GAT capstone marts read the `gat_relational` source (4 tables written by
 `fct_gat_vs_baseline` tags every alpha by tier (relational_gat /
 relational_unlearned / island_mean / island_single) for the GAT-vs-baseline
 comparison; `fct_gat_scorecard` is the one-row headline (four gates, value-add
-over best single, attention A/B). duckdb + dbt live in a venv at `D:\duckdb`.
+over best single, attention A/B). duckdb + dbt are installed in the system
+Python 3.13 (`dbt-core` + `dbt-duckdb`), so `dbt` is available directly on PATH.
 
 ## Models
 

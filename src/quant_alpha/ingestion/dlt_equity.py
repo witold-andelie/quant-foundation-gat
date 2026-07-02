@@ -9,7 +9,6 @@ Covers the Zoomcamp Workshop knowledge points:
 """
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Iterator
 
@@ -69,15 +68,14 @@ def build_equity_pipeline(
     duckdb_path: Path,
     dataset_name: str = "dlt_equity_raw",
 ) -> dlt.Pipeline:
-    os.environ["DESTINATION__DUCKDB__CREDENTIALS"] = str(duckdb_path)
-    try:
-        return dlt.pipeline(
-            pipeline_name="equity_alpha",
-            destination="duckdb",
-            dataset_name=dataset_name,
-        )
-    finally:
-        os.environ.pop("DESTINATION__DUCKDB__CREDENTIALS", None)
+    # Credentials must be bound to the destination object: dlt >=1.x resolves
+    # config lazily at run() time, so a temporary env var set only during
+    # pipeline creation is silently ignored and data lands in ./<name>.duckdb.
+    return dlt.pipeline(
+        pipeline_name="equity_alpha",
+        destination=dlt.destinations.duckdb(str(duckdb_path)),
+        dataset_name=dataset_name,
+    )
 
 
 def run_dlt_equity_pipeline(

@@ -203,8 +203,9 @@ scope choice, not an oversight, and several are themselves results.
 - **Warehouse / dbt.** `--persist` (or `persist_gat_outputs`) writes four tables
   to DuckDB; the dbt models `stg_gat_panel`, `fct_gat_vs_baseline` (tiered
   relational A/B), and `fct_gat_scorecard` (one-row gates + attention A/B)
-  surface the results for querying/BI. duckdb + dbt live in a venv at
-  `D:\duckdb` (kept off the C: drive); the GAT pipeline itself needs no duckdb.
+  surface the results for querying/BI. duckdb + dbt are installed in the system
+  Python 3.13 (2026-07-02, replacing the old `D:\duckdb` venv); the GAT
+  pipeline itself needs no duckdb.
   Run: `dbt run/test --profiles-dir . --select fct_gat_vs_baseline
   fct_gat_scorecard` from `dbt_quant_alpha/`.
 
