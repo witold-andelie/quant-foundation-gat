@@ -26,6 +26,7 @@ jobs:
         run: |
           python -m pip install -U pip
           pip install -r requirements.txt
+          pip install ".[dev,dlt]"
 
       - name: Lint
         run: ruff check src tests streamlit_app
@@ -47,6 +48,7 @@ jobs:
         run: |
           python -m pip install -U pip
           pip install -r requirements.txt
+          pip install ".[dbt,dlt]"
 
       - name: Run equity pipeline (offline)
         run: quant-alpha run --offline
