@@ -4,7 +4,6 @@ the GAT edge head is torch-gated."""
 from __future__ import annotations
 
 import numpy as np
-import pandas as pd
 import pytest
 
 from quant_alpha.forecast.edge import _spread_arrays, border_list, evaluate_edge_forecast

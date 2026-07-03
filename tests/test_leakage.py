@@ -83,7 +83,8 @@ def _fit_and_valid_ic(sections, epochs: int, loss: str, lr: float = 5e-3) -> flo
     # diverge enough to push the MSE planted-signal IC across its 0.3 threshold
     # (E8). CPU keeps the controls deterministic, matching the paper-run device.
     device = torch.device("cpu")
-    import tempfile, os
+    import tempfile
+    import os
     with tempfile.TemporaryDirectory() as tmp:
         model = fit(
             ds, cfg, device=device, loss_fn=LOSSES[loss], out_path=os.path.join(tmp, "leak.pt"),

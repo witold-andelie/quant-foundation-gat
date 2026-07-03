@@ -4,14 +4,12 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from common import load_table, pick, render_track_selector
+from common import pick, render_track_selector
 
 st.title("🔬 Factor Research")
 track, is_energy, db, tm = render_track_selector(key="factor_track")

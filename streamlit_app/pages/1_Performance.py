@@ -12,7 +12,7 @@ from plotly.subplots import make_subplots
 import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from common import load_table, pick, render_track_selector
+from common import pick, render_track_selector
 
 st.title("📈 Performance Analysis")
 track, is_energy, db, tm = render_track_selector(key="perf_track")

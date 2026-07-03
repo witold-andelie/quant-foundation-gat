@@ -25,7 +25,6 @@ def consume_energy_signals(
     from confluent_kafka import Consumer
     from fastavro import schemaless_reader
 
-    import re
 
     schema = _load_schema(schema_path)
     consumer: Consumer | None = None

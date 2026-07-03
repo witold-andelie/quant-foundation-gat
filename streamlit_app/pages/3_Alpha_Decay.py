@@ -4,13 +4,11 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from common import load_table, pick, render_track_selector
+from common import pick, render_track_selector
 
 st.title("📉 Alpha Decay & Walk-Forward Stability")
 track, is_energy, db, tm = render_track_selector(key="decay_track")
@@ -57,7 +55,7 @@ if not decay.empty:
                 color_continuous_scale="RdBu_r",
                 color_continuous_midpoint=0,
                 aspect="auto",
-                title=f"IC heatmap — alpha × horizon",
+                title="IC heatmap — alpha × horizon",
                 text_auto=".3f",
             )
             fig2.update_layout(height=350)
