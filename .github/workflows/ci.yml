@@ -181,14 +181,23 @@ jobs:
         if: env.HAS_GCP == 'true'
         run: gcloud auth configure-docker ${{ env.REGISTRY }} --quiet
 
+      - name: Compute image tags
+        id: image
+        # Without GCP secrets the registry tag would be malformed (empty project id),
+        # so fall back to a local-only tag and just validate the build.
+        run: |
+          if [ "$HAS_GCP" = "true" ]; then
+            echo "tags=$REGISTRY/$IMAGE_NAME:latest,$REGISTRY/$IMAGE_NAME:$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+          else
+            echo "tags=quant-alpha-foundation:ci" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build image (always)
         uses: docker/build-push-action@v5
         with:
           context: .
           push: ${{ secrets.GCP_PROJECT_ID != '' }}
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          tags: ${{ steps.image.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -207,7 +216,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "1.6.0"
+          terraform_version: "1.15.7"
 
       - name: Terraform fmt check
         run: terraform fmt -check -recursive
