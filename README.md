@@ -53,7 +53,7 @@ ENTSO-E API · Yahoo Finance · Synthetic
 | M2 — Orchestration | Kestra (5 flows, K8s deployment, cross-flow triggers) | ✅ Complete |
 | Workshop 1 — dlt Ingestion | dlt v1.26 (`@dlt.source`, incremental cursor, DuckDB dest) | ✅ Complete |
 | M3 — Data Warehouse | DuckDB (local), BigQuery 3-layer schema (Terraform-declared) | ✅ Complete |
-| M4 — Analytics Engineering | dbt (2 projects, 19 models, staging + marts, schema tests) | ✅ Complete |
+| M4 — Analytics Engineering | dbt (2 projects, 15 models + 18 schema tests, staging + marts) | ✅ Complete |
 | M5 — Data Platforms | Bruin asset graph (8 assets, lineage, topological runner) | ✅ Complete |
 | M6 — Batch Processing | Apache Spark (7 rolling features, window functions) | ✅ Complete |
 | M7 — Streaming | Redpanda + Avro + RisingWave (5 materialized views) | ✅ Complete |
@@ -63,7 +63,7 @@ ENTSO-E API · Yahoo Finance · Synthetic
 
 Full coverage audit: [docs/zoomcamp_coverage.md](docs/zoomcamp_coverage.md)
 
-**Test suite: 113 tests, all passing** (data-engineering core + GNN capstone + energy-forecasting; torch/GAT tests skip cleanly without the `[gnn]` extra).
+**Test suite: 115 tests, all passing** (data-engineering core + GNN capstone + energy-forecasting; torch/GAT tests skip cleanly without the `[gnn]` extra).
 
 ## Alpha Research
 
@@ -253,7 +253,7 @@ src/quant_alpha/      Python package
   platform/           Bruin graph runner, data contracts, quality checks
   storage/            DuckDB, GCS, BigQuery writers
 streamlit_app/        Streamlit research dashboard
-tests/                113-test suite (core + GNN capstone + forecasting)
+tests/                115-test suite (core + GNN capstone + forecasting)
 ```
 
 ## References
