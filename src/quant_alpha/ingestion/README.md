@@ -12,6 +12,13 @@ This module handles all data collection for the platform. It provides two tracks
 | dlt energy pipeline | `dlt_energy.py` | Live / Offline | Hourly, incremental |
 | dlt equity pipeline | `dlt_equity.py` | Live / Offline | Daily, incremental |
 
+The ENTSO-E pull (`entsoe.py`) covers day-ahead price (A44), day-ahead load
+forecast (A65/A01), wind+solar generation forecast (A69), actual load (A65/A16),
+generation mix per fuel group (A75), and **cross-border physical flows + day-ahead
+NTC** (A11/A61, `fetch_entsoe_cross_border`) — the inputs for the energy
+forecasting track and the GAT congestion edge feature. See
+[docs/energy_forecasting.md](../../../docs/energy_forecasting.md).
+
 ---
 
 ## dlt-Based Ingestion (Workshop Module)

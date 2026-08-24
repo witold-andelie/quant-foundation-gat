@@ -12,7 +12,7 @@ from plotly.subplots import make_subplots
 import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from common import load_table, pick, render_track_selector
+from common import pick, render_track_selector
 
 st.title("📈 Performance Analysis")
 track, is_energy, db, tm = render_track_selector(key="perf_track")
@@ -44,6 +44,18 @@ with c3: st.metric("Ann. Vol",       _m("annualized_volatility", "{:.1%}"))
 with c4: st.metric("Sharpe",         _m("sharpe",                "{:.2f}"))
 with c5: st.metric("Sortino",        _m("sortino",               "{:.2f}"))
 with c6: st.metric("Max Drawdown",   _m("max_drawdown",          "{:.1%}"))
+
+if is_energy:
+    st.warning(
+        "⚠️ **Baseline Notice (Energy):** This page displays the **Naive Multi-Alpha Long/Short Baseline** (E13b). Under unclipped returns, cross-sectional power trading loses money due to scarcity tail spikes (-100% total return). "
+        "For the restructured GNN price/spread forecasting ladder, visit **[Page 8: GAT & Forecasting](8_GAT_Forecasting)**."
+    )
+else:
+    st.info(
+        "ℹ️ **Baseline Notice (Equity):** This page displays the **Naive Equal-Weighted Composite Baseline** (10 raw factors without relational graph modeling). "
+        "Due to unpruned factor noise, this baseline is negative (Sharpe -1.39, Return -44.1%, Max Drawdown -60.1%). "
+        "For the **GAT Relational Graph Model** (which improves Sharpe to **+0.35 ~ +1.40**, turns return positive, and cuts drawdown to **-4.9%**), visit **[Page 8: GAT & Forecasting](8_GAT_Forecasting)**."
+    )
 
 st.divider()
 

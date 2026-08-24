@@ -1,0 +1,261 @@
+\chapter{Energy Track: From Alpha to Forecasting}
+\label{ch:energy}
+
+The energy track set out to repeat the equity result on a physically
+grounded graph: twenty European bidding zones connected by the actual
+cross-border transmission network, with day-ahead spot prices from the
+ENTSO-E Transparency Platform \cite{entsoe-tp}. \Cref{fig:interconnector}
+shows that graph as configured in the repository --- twenty zones, 38
+physical borders and HVDC links, reference data rather than anything
+estimated from prices. The track ended somewhere more
+interesting than its plan. The cross-sectional alpha framing failed --- not quietly,
+but through three nested evaluation artifacts, each of which initially
+produced spectacular numbers and each of which the project's own controls
+caught (\cref{sec:en-negcontrol,sec:en-artifact,sec:en-redesign,sec:en-clip}).
+The track was then reframed as a forecasting problem, where the graph
+finally showed genuine, control-validated value, concentrated exactly
+where relational structure should matter most: on cross-border spreads
+(\cref{sec:en-forecast,sec:en-edge}). This chapter reports the arc in
+order, because the order is the contribution. Two research questions run
+through it: whether one kernel transfers to a physical graph without
+manufacturing false positives (RQ2), and whether that graph improves
+forecasts (RQ3).
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.78\textwidth]{interconnector.pdf}
+  \caption{The energy graph: 20 European bidding zones and their 38
+  physical cross-border interconnections (land borders and HVDC
+  cables), drawn from the repository's reference data. Unlike the
+  equity correlation graph, nothing here is estimated --- the topology
+  is the grid. DE\_LU, with eleven interconnectors, is the network's
+  natural hub.}
+  \label{fig:interconnector}
+\end{figure}
+
+\section{One kernel, two graphs --- and a second negative control}
+\label{sec:en-negcontrol}
+
+The dual-track design goal was engineering economy: the equity GAT, its
+training loop, its four gates, and its A/B anchors run unchanged on the
+energy panel; only the graph (physical interconnectors instead of
+estimated correlations), the label horizon (24 hours instead of 5 days),
+and the node set (bidding zones instead of symbols) differ. That goal was
+met literally --- the same kernel functions are called by both tracks ---
+and the first energy run doubled as a control.
+
+On synthetic power data (2{,}857 hourly snapshots, 57{,}140 rows,
+generated without any cross-zonal coupling) the pipeline correctly finds
+nothing: OOS IC around $-0.01$ in both retrain arms, and, crucially, the
+attention value-add is \emph{negative} ($-0.74$ single, $-0.59$
+walk-forward). When there is no relational signal, the GAT is worse than
+uniform neighbour averaging, not better. This is the energy analogue of
+the equity negative control, on a structurally different graph: even a
+learned attention layer over a physical topology does not manufacture
+signal from noise.
+
+\section{Real data, implausible result}
+\label{sec:en-artifact}
+
+The live ENTSO-E run covered all twenty zones for the full year 2024 at
+hourly resolution --- 175{,}200 rows, with every configured zone
+returning data. Real power prices immediately justified the label's
+engineering: they spanned $-427$ to $1{,}896$~EUR/MWh, negative in 3.95\%
+of hours. The pipeline ran end to end without kernel changes. The
+numbers it produced were an OOS IC of 0.20, an OOS Sharpe of 8.25, a
+composite roughly one hundred times its best single input, and four
+gates out of four.
+
+The same kernel earns a Sharpe of about 1.4 on equities. A result this
+much better is not a discovery; it is a symptom. Diagnosis found three
+compounding artifacts. First, overlapping labels: a 24-hour forward
+return sampled hourly gives consecutive observations that share 23 of
+their 24 hours --- measured lag-1 autocorrelation 0.91 --- while the
+Sharpe computation treats them as independent, understating the
+denominator by an order of magnitude. Second, the ``signal'' is trivial:
+a one-line predictor, the negative of the current spot price, scores a
+cross-sectional IC of 0.235, \emph{higher} than the GAT's 0.20. Whatever
+the model learned, it is dominated by deterministic diurnal
+mean-reversion. Third, the annualisation constant was the equity one
+(252 periods per year) applied to hourly data (8{,}760). On top of all
+three sits a market-structure lookahead: the day-ahead auction publishes
+all 24 hours of day $D$ at once on $D-1$, so an ``hourly'' 24-hour-ahead
+label is partly contemporaneous information.
+
+The point the report wants to preserve is that the magnitude itself was
+the alarm. The same scepticism that made the synthetic controls a design
+feature flagged the real-data number as not credible, rather than
+publishing a Sharpe of 8.
+
+\section{Redesign in the day-ahead frame}
+\label{sec:en-redesign}
+
+The redesign moved the evaluation to the market's actual decision
+frequency. The day-ahead auction clears once per day, so the snapshot
+became the delivery day: base-load-aggregated features from data up to
+day $D$, a label equal to the genuinely-unknown next-day base-load price
+change $D \to D{+}1$, non-overlapping by construction, annualised at 365.
+
+The mechanical checks all came back clean. Label lag-1 autocorrelation
+fell from 0.91 to $-0.10$; the shuffle-label control gave a validation IC
+of 0.07 against 0.19 for real labels, so the remaining signal is not
+leakage. And yet the result stayed implausible: GAT composite OOS Sharpe
+11.08 --- with the trivial negative-price predictor at 6.15. The
+interim reading was that the pipeline was now honestly measuring a real
+but non-tradeable physical regularity: the law of one price across
+interconnected zones, already priced by cross-border capacity auctions.
+That reading was half right, and its other half is the most instructive
+result in this report.
+
+\section{The third artifact: a clip on the evaluation return}
+\label{sec:en-clip}
+
+A direct challenge --- \emph{have you actually confirmed the strategy
+would lose nothing?} --- prompted one more check: recompute the same
+strategies under different definitions of the evaluation return.
+\Cref{tab:en-clip} shows what that found.
+
+\begin{table}[htbp]
+  \centering
+  \caption{The return-definition diagnostic (real ENTSO-E daily frame,
+  OOS). The $\pm0.8$ clip, inherited from the training label, was also
+  applied to the evaluation return in E13 --- and manufactured the
+  entire positive result.}
+  \label{tab:en-clip}
+  \begin{tabular}{lS[table-format=-2.2]S[table-format=-2.2]}
+    \toprule
+    Evaluation return & {trivial $-$price Sharpe} & {GAT Sharpe} \\
+    \midrule
+    floored + $\pm0.8$ clip (as trained) & +6.28 & +11.00 \\
+    winsorised $\pm0.5$                  & +4.61 & {---}  \\
+    log return                           & +3.75 & {---}  \\
+    plain relative return (honest)       & -1.52 & -1.54  \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+The mechanism is specific and worth stating plainly. The long-short
+strategy shorts expensive zones. European power prices have fat right
+tails --- scarcity spikes reaching $1{,}896$~EUR/MWh in this sample ---
+and the $\pm0.8$ clip on the evaluation return caps exactly those
+short-leg losses. Removing the clip turns a Sharpe-11 winner into a
+strategy that loses money, for the GAT and the one-line baseline alike.
+The rank-IC, meanwhile, stays at about 0.21 under both return
+definitions: cheap zones really do tend to rise relative to expensive
+ones, but ranking correctly is blind to tail magnitudes, and the tails
+are where this strategy's money is lost. A positive IC coexisting with
+negative PnL is the transferable lesson --- never transform the
+evaluation return, and never read rank quality as profitability. The
+equity track is unaffected: its evaluation return was never clipped.
+
+The final verdict on the energy alpha question is therefore airtight and
+negative. Under honest returns the day-ahead cross-sectional strategy
+loses money (Sharpe about $-1.5$); every positive energy number along the
+way was an artifact --- overlap, annualisation, then the return clip ---
+and the GAT adds no tradeable value over a one-line baseline. The fix
+(evaluation on unclipped returns) shipped as the default, so the
+repository can no longer reproduce the inflated numbers.
+
+\section{The reframe: does the graph improve forecasts?}
+\label{sec:en-forecast}
+
+What survives E13b is a genuine question the data can answer: not ``is
+there alpha?'' but ``does the interconnector graph improve forecast
+skill?'' --- measured with the ladder of \cref{sec:skill} on six months
+of real ENTSO-E data (20 zones, 87{,}360 rows, with day-ahead load, wind
+and solar forecasts, realised load, and generation mix as drivers).
+\Cref{tab:energy-node-skill} shows the node-level ladder, and
+\cref{fig:energy-ladder} draws it with one added ingredient per rung.
+
+\input{tables/energy_node_skill}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.54\textwidth]{energy_ladder.pdf}
+  \caption{The node-level forecast ladder of
+  \cref{tab:energy-node-skill}, drawn as a ladder. Each rung adds
+  exactly one ingredient, so each skill increment isolates one cause.
+  The published drivers enter at the ridge rung and are shared by every
+  rung above it; the graph's contribution ($+0.131$) enters below any
+  learning.}
+  \label{fig:energy-ladder}
+\end{figure}
+
+Three findings, in decreasing order of robustness. First, the graph
+carries real forecast value: uniform neighbour averaging over the
+interconnector topology lifts skill by $+0.131$ over the no-graph ridge
+with the same drivers. The synthetic negative control (independent
+zones) shows no such lift, so the gain is genuine cross-zonal coupling.
+This rung is pure numpy --- no learned model is involved --- which makes
+it the hardest number in the chapter to argue with.
+
+Second, learned attention beats the uniform anchor on cross-sectional
+\emph{ranking} in five seeds of five (rank-IC 0.61 against 0.58) but is
+a wash on MSE skill (better in two seeds of five). Uniform
+neighbour-averaging turns out to be near MSE-optimal on this graph --- a
+hard bar --- so the GAT's robust edge here is order, not magnitude,
+echoing the equity finding that attention's value is a modest tilt on
+broad pooling.
+
+Third, the congestion hypothesis --- that attention should down-weight
+saturated borders if told how congested they are --- is not supported.
+Two operationalisations of the edge feature were tried: the current
+cross-border price spread (a leak-safe proxy), and ground-truth physical
+flows over day-ahead transfer capacity fetched for all 38 borders. The
+proxy's apparent gain existed only in a hand-rolled dense GAT
+implementation ($+0.031$ skill, five of five seeds) and vanished under
+the standard PyG GATv2 ($-0.002$, two of five); the ground-truth version
+beat node-only attention in one seed of five. The hypothesis is not
+refuted --- capacity data covered only 36\% of borders, and the most
+coupled region uses flow-based coupling that a flow-over-capacity ratio
+cannot express --- but as a smooth additive edge feature, congestion
+does not add forecast skill. The two-backend check deserves its
+methodology note: a single-seed PyG run had initially shown $+0.072$, a
+lucky draw that a five-seed rerun corrected, and the cross-implementation
+comparison is what stopped a fragile effect from becoming a claim.
+
+\section{Edge-level spread prediction: the relational payoff}
+\label{sec:en-edge}
+
+The last experiment moved the target instead of the model. A
+cross-border price spread $\mathrm{spot}_a - \mathrm{spot}_b$ is
+irreducibly relational --- it does not exist for a single node, and it is
+the object that transmission rights actually price. A GAT computes node
+embeddings by message passing over the interconnector graph; a small MLP
+head predicts each border's next-day spread from the two endpoint
+embeddings and the current spread. The baseline that matters is a ridge
+that already sees both endpoints' drivers and the current spread ---
+so any gain over it is whole-network context, not information the
+baseline lacks. \Cref{tab:energy-edge-skill} shows the ladder over the
+38 borders.
+
+\input{tables/energy_edge_skill}
+
+The edge GAT beats the both-endpoint ridge by $+0.056$ skill --- about
+29\% relative --- in five seeds of five, and the synthetic control
+inverts as it should: on independent zones the same architecture is
+\emph{worse} than the ridge, so the real-data gain is structure, not
+capacity. This is the project's strongest relational result, and its
+placement is the point: node-level price forecasting barely needed the
+graph, congestion-as-edge-feature was null, and the GNN's value
+concentrates precisely on the target that cannot be defined without the
+relation. Caveats stated once: a single six-month window, untuned
+hyperparameters, and modest absolute skill --- spreads are noisy
+differences.
+
+\section{Summary of the energy evidence}
+\label{sec:en-summary}
+
+\input{tables/energy_findings}
+
+\Cref{tab:energy-findings} condenses the track. As an alpha project the
+energy track concluded negatively three artifacts deep, and the honest
+number --- the strategy loses money --- is stated as the finding it is.
+As a forecasting project it produced two robust, control-validated
+positives (the graph lift of $+0.131$ at node level; the edge-level
+message-passing gain of $+0.056$, five of five seeds) and one clean null
+(congestion edge features, under both operationalisations). As
+methodology it produced the report's most transferable lessons: evaluate
+on untransformed returns, distrust magnitudes that outrun their
+plausibility class, and require cross-implementation replication before
+believing a learned effect.

@@ -1,0 +1,204 @@
+pageType: content
+background:
+  type: solid
+  color: "$background"
+elements:
+  - elementId: badge
+    elementType: text
+    bounds: [60, 40, 300, 20]
+    content:
+      style: "$badge"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p>RESEARCH QUESTIONS</p>
+  - elementId: title
+    elementType: text
+    bounds: [60, 65, 900, 40]
+    content:
+      style: "$pageTitle"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p><strong>Three Questions That Organise the Work</strong></p>
+  - elementId: divider
+    elementType: shape
+    bounds: [60, 115, 1160, 0]
+    shapeName: straightConnector1
+    border:
+      style: solid
+      width: 1
+      color: "$midGray"
+  - elementId: rq1-bg
+    elementType: shape
+    bounds: [60, 140, 1160, 155]
+    shapeName: roundRect
+    adjustments: [3000]
+    fill:
+      type: solid
+      color: "$lightGray"
+  - elementId: rq1-num
+    elementType: shape
+    bounds: [80, 160, 44, 44]
+    shapeName: ellipse
+    fill:
+      type: solid
+      color: "$primary"
+  - elementId: rq1-num-text
+    elementType: text
+    bounds: [80, 160, 44, 44]
+    content:
+      fontSize: 20
+      color: "#FFFFFF"
+      fontFamily: "QuattrocentoSans"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p><strong>1</strong></p>
+  - elementId: rq1-title
+    elementType: text
+    bounds: [140, 158, 1060, 30]
+    content:
+      fontSize: 20
+      color: "$text"
+      fontFamily: "QuattrocentoSans"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p><strong>Does learned attention add value over unlearned propagation?</strong></p>
+  - elementId: rq1-body
+    elementType: text
+    bounds: [140, 195, 1060, 85]
+    content:
+      fontSize: 16
+      color: "$text"
+      fontFamily: "QuattrocentoSans"
+      lineHeight: 1.5
+      align: [left, top]
+      text: |
+        <p>Hold the <strong>information set fixed</strong> (same island alphas) and the <strong>topology fixed</strong> (same graph). Measure what the graph adds (uniform anchor) and what learned attention adds (GAT margin over that anchor).</p>
+  - elementId: rq2-bg
+    elementType: shape
+    bounds: [60, 315, 1160, 155]
+    shapeName: roundRect
+    adjustments: [3000]
+    fill:
+      type: solid
+      color: "$lightGray"
+  - elementId: rq2-num
+    elementType: shape
+    bounds: [80, 335, 44, 44]
+    shapeName: ellipse
+    fill:
+      type: solid
+      color: "$primary"
+  - elementId: rq2-num-text
+    elementType: text
+    bounds: [80, 335, 44, 44]
+    content:
+      fontSize: 20
+      color: "#FFFFFF"
+      fontFamily: "QuattrocentoSans"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p><strong>2</strong></p>
+  - elementId: rq2-title
+    elementType: text
+    bounds: [140, 333, 1060, 30]
+    content:
+      fontSize: 20
+      color: "$text"
+      fontFamily: "QuattrocentoSans"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p><strong>Does one GAT kernel transfer across structurally different graphs?</strong></p>
+  - elementId: rq2-body
+    elementType: text
+    bounds: [140, 370, 1060, 85]
+    content:
+      fontSize: 16
+      color: "$text"
+      fontFamily: "QuattrocentoSans"
+      lineHeight: 1.5
+      align: [left, top]
+      text: |
+        <p>Two graphs: an <strong>estimated correlation backbone</strong> over 49 US equities, and the <strong>physical interconnector network</strong> over 20 European bidding zones. Same kernel, same harness, same gates — without manufacturing false positives.</p>
+  - elementId: rq3-bg
+    elementType: shape
+    bounds: [60, 490, 1160, 155]
+    shapeName: roundRect
+    adjustments: [3000]
+    fill:
+      type: solid
+      color: "$lightGray"
+  - elementId: rq3-num
+    elementType: shape
+    bounds: [80, 510, 44, 44]
+    shapeName: ellipse
+    fill:
+      type: solid
+      color: "$primary"
+  - elementId: rq3-num-text
+    elementType: text
+    bounds: [80, 510, 44, 44]
+    content:
+      fontSize: 20
+      color: "#FFFFFF"
+      fontFamily: "QuattrocentoSans"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p><strong>3</strong></p>
+  - elementId: rq3-title
+    elementType: text
+    bounds: [140, 508, 1060, 30]
+    content:
+      fontSize: 20
+      color: "$text"
+      fontFamily: "QuattrocentoSans"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p><strong>Does the physical topology improve forecast skill?</strong></p>
+  - elementId: rq3-body
+    elementType: text
+    bounds: [140, 545, 1060, 85]
+    content:
+      fontSize: 16
+      color: "$text"
+      fontFamily: "QuattrocentoSans"
+      lineHeight: 1.5
+      align: [left, top]
+      text: |
+        <p>On real power-market data, where does the graph's value concentrate? Node-level price forecasting, or irreducibly relational targets like cross-border spreads?</p>
+  - elementId: footer-bar
+    elementType: shape
+    bounds: [0, 680, 1280, 40]
+    shapeName: rect
+    fill:
+      type: solid
+      color: "$primary"
+  - elementId: footer-left
+    elementType: text
+    bounds: [60, 685, 600, 30]
+    content:
+      fontSize: 12
+      color: "#FFFFFF"
+      fontFamily: "QuattrocentoSans"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p>Relational Alpha Factors · GAT Capstone</p>
+  - elementId: footer-right
+    elementType: text
+    bounds: [1100, 685, 120, 30]
+    content:
+      fontSize: 12
+      color: "#FFFFFF"
+      fontFamily: "QuattrocentoSans"
+      align: [right, middle]
+      wrap: false
+      text: |
+        <p>4</p>

@@ -1,0 +1,186 @@
+pageType: content
+background:
+  type: solid
+  color: "$background"
+elements:
+  - elementId: badge
+    elementType: text
+    bounds: [60, 40, 300, 20]
+    content:
+      style: "$badge"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p>ENERGY TRACK</p>
+  - elementId: title
+    elementType: text
+    bounds: [60, 65, 900, 40]
+    content:
+      style: "$pageTitle"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p><strong>The Physical Graph: 20 European Bidding Zones</strong></p>
+  - elementId: divider
+    elementType: shape
+    bounds: [60, 115, 1160, 0]
+    shapeName: straightConnector1
+    border:
+      style: solid
+      width: 1
+      color: "$midGray"
+  - elementId: figure
+    elementType: image
+    bounds: [60, 130, 700, 400]
+    src: "D:/AI_Models/quant-alpha-foundation/paper/presentation/images/interconnector.png"
+    fit:
+      mode: contain
+  - elementId: figure-caption
+    elementType: text
+    bounds: [60, 535, 700, 30]
+    content:
+      fontSize: 14
+      color: "$darkGray"
+      fontFamily: "QuattrocentoSans"
+      lineHeight: 1.3
+      align: [left, middle]
+      text: |
+        <p>20 zones, 38 physical borders and HVDC links. DE_LU (11 links) is the natural hub.</p>
+  - elementId: right-card-1-bg
+    elementType: shape
+    bounds: [800, 130, 420, 120]
+    shapeName: roundRect
+    adjustments: [3000]
+    fill:
+      type: solid
+      color: "$lightGray"
+  - elementId: right-card-1-title
+    elementType: text
+    bounds: [820, 140, 380, 30]
+    content:
+      fontSize: 18
+      color: "$primary"
+      fontFamily: "QuattrocentoSans"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p><strong>Physical vs Estimated</strong></p>
+  - elementId: right-card-1-body
+    elementType: text
+    bounds: [820, 175, 380, 65]
+    content:
+      fontSize: 16
+      color: "$text"
+      fontFamily: "QuattrocentoSans"
+      lineHeight: 1.4
+      align: [left, top]
+      text: |
+        <p>Unlike the equity graph (correlation-estimated), this topology is the <strong>actual power grid</strong> — nothing is inferred from prices.</p>
+  - elementId: right-card-2-bg
+    elementType: shape
+    bounds: [800, 270, 420, 120]
+    shapeName: roundRect
+    adjustments: [3000]
+    fill:
+      type: solid
+      color: "$lightGray"
+  - elementId: right-card-2-title
+    elementType: text
+    bounds: [820, 280, 380, 30]
+    content:
+      fontSize: 18
+      color: "$accent"
+      fontFamily: "QuattrocentoSans"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p><strong>Alpha Framing: Failed Honestly</strong></p>
+  - elementId: right-card-2-body
+    elementType: text
+    bounds: [820, 315, 380, 65]
+    content:
+      fontSize: 16
+      color: "$text"
+      fontFamily: "QuattrocentoSans"
+      lineHeight: 1.4
+      align: [left, top]
+      text: |
+        <p>Three nested artifacts (overlap, annualisation, clip) produced Sharpe 8–11. Controls caught them. Under honest returns: <strong>loses money</strong>.</p>
+  - elementId: right-card-3-bg
+    elementType: shape
+    bounds: [800, 410, 420, 120]
+    shapeName: roundRect
+    adjustments: [3000]
+    fill:
+      type: solid
+      color: "$lightGray"
+  - elementId: right-card-3-title
+    elementType: text
+    bounds: [820, 420, 380, 30]
+    content:
+      fontSize: 18
+      color: "$secondary"
+      fontFamily: "QuattrocentoSans"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p><strong>Forecasting Reframe: Succeeded</strong></p>
+  - elementId: right-card-3-body
+    elementType: text
+    bounds: [820, 455, 380, 65]
+    content:
+      fontSize: 16
+      color: "$text"
+      fontFamily: "QuattrocentoSans"
+      lineHeight: 1.4
+      align: [left, top]
+      text: |
+        <p>Reframed from "is there alpha?" to "does the graph improve forecasts?" — clean, control-validated positives.</p>
+  - elementId: insight-bar
+    elementType: shape
+    bounds: [60, 580, 1160, 50]
+    shapeName: roundRect
+    adjustments: [3000]
+    fill:
+      type: solid
+      color: "$primary"
+  - elementId: insight-text
+    elementType: text
+    bounds: [80, 585, 1120, 40]
+    content:
+      fontSize: 16
+      color: "#FFFFFF"
+      fontFamily: "QuattrocentoSans"
+      lineHeight: 1.4
+      align: [left, middle]
+      text: |
+        <p>The energy track's most transferable lesson: <strong>treat implausible magnitudes as alarms</strong>, not discoveries. Sharpe 8 is a symptom, not a result.</p>
+  - elementId: footer-bar
+    elementType: shape
+    bounds: [0, 680, 1280, 40]
+    shapeName: rect
+    fill:
+      type: solid
+      color: "$primary"
+  - elementId: footer-left
+    elementType: text
+    bounds: [60, 685, 600, 30]
+    content:
+      fontSize: 12
+      color: "#FFFFFF"
+      fontFamily: "QuattrocentoSans"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p>Relational Alpha Factors · GAT Capstone</p>
+  - elementId: footer-right
+    elementType: text
+    bounds: [1100, 685, 120, 30]
+    content:
+      fontSize: 12
+      color: "#FFFFFF"
+      fontFamily: "QuattrocentoSans"
+      align: [right, middle]
+      wrap: false
+      text: |
+        <p>9</p>

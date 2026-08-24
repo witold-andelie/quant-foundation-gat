@@ -1,0 +1,4 @@
+predictor,skill,rank_ic,note
+edge_persistence,0.000,,spread today (reference)
+edge_ridge,0.192,0.67,both endpoints' day-ahead drivers + current spread (no graph)
+edge_gat,0.248,0.68,GAT node embeddings -> edge MLP head (message passing; 5-seed mean)

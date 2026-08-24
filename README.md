@@ -1,41 +1,48 @@
 # Quant Alpha Foundation
 
-A Second Foundation-inspired quantitative energy research platform with a parallel US equities alpha demo. Built to cover the [DataTalksClub Data Engineering Zoomcamp](https://github.com/DataTalksClub/data-engineering-zoomcamp) syllabus in semester-project form, with WorldQuant-style formulaic alpha research and a production-ready data engineering stack.
+A Second Foundation-inspired quantitative energy research platform with a parallel US equities alpha demo. Built to cover the [DataTalksClub Data Engineering Zoomcamp](https://github.com/DataTalksClub/data-engineering-zoomcamp) syllabus in semester-project form, with WorldQuant-style formulaic alpha research and a production-ready data engineering stack — now extended with a **graph attention network (GAT) capstone** that adds relational factors and a leakage-controlled **energy price/spread forecasting** track ([docs/gnn_capstone_design.md](docs/gnn_capstone_design.md), [docs/energy_forecasting.md](docs/energy_forecasting.md)).
 
 ## Tracks
 
 | Track | Universe | Factors | Data Source |
 |---|---|---|---|
-| Second Foundation Energy | European power markets | 8 energy alphas | ENTSO-E / synthetic |
-| US Equities Demo | Configurable equity universe | 10 equity alphas | Yahoo Finance / synthetic |
+| Second Foundation Energy | European power markets | 8 island alphas + relational (GAT) + price/spread forecasting | ENTSO-E / synthetic |
+| US Equities Demo | Configurable equity universe | 10 island alphas + relational (GAT) | Yahoo Finance / synthetic |
+
+Both tracks share one GAT kernel for **relational factors**; the energy track adds a leakage-controlled **price/spread forecasting** study — see [Relational Factors & Energy Forecasting](#relational-factors--energy-forecasting-gnngat).
 
 ## Architecture
 
 ```
-ENTSO-E API / Yahoo Finance / Synthetic
+ENTSO-E API · Yahoo Finance · Synthetic
         │
         ▼
-   dlt incremental ingestion  ──────────────────────────────► DuckDB raw layer
-        │                                                           │
-        ▼                                                           ▼
-   Kestra orchestration                               Bruin asset graph (M5)
-        │                                                           │
-        ▼                                                           ▼
-   Raw Parquet (data lake)  ──────────────► GCS bucket (cloud)   dbt staging
-        │                                                           │
-        ▼                                                           ▼
-   Python factor engine → alpha panel ──────────────────────► dbt marts
-        │                                                           │
-        ▼                                                           ▼
-   DuckDB warehouse  ──────────────────────────────────► BigQuery (cloud)
-        │                │
-        ▼                ▼
-   Spark batch     Redpanda / RisingWave (streaming SQL)
-        │                │
-        └────────────────┘
-                 │
-                 ▼
-        Streamlit research dashboard
+   dlt incremental ingestion ──► DuckDB raw layer ──► GCS / BigQuery (cloud)
+        │
+        ▼
+   Kestra orchestration · Bruin asset graph (M5) ──► dbt staging → marts
+        │
+        ▼
+   Python factor engine → (time, entity) panel
+        │
+        ▼
+   Factor / Provider seam
+     • island factors — expression, WorldQuant-style
+     • relational factors — GNN/GAT capstone:
+         topology: correlation graph (equity) / interconnector graph (energy)
+         → Propagator seam → UniformMean | GAT  (PyG | pure-torch)
+         → composite + four research gates + attention A/B → fct_gat_* marts
+        │
+        ▼
+   Energy forecasting (forecast/) — skill-vs-persistence ladder:
+     persistence → seasonal → no-graph ridge → uniform-graph → GAT
+     (node price level  +  edge-level cross-border spread)
+        │
+        ▼
+   DuckDB warehouse · Spark batch · Redpanda / RisingWave (streaming SQL)
+        │
+        ▼
+   Streamlit research dashboard
 ```
 
 ## Zoomcamp Module Coverage
@@ -46,7 +53,7 @@ ENTSO-E API / Yahoo Finance / Synthetic
 | M2 — Orchestration | Kestra (5 flows, K8s deployment, cross-flow triggers) | ✅ Complete |
 | Workshop 1 — dlt Ingestion | dlt v1.26 (`@dlt.source`, incremental cursor, DuckDB dest) | ✅ Complete |
 | M3 — Data Warehouse | DuckDB (local), BigQuery 3-layer schema (Terraform-declared) | ✅ Complete |
-| M4 — Analytics Engineering | dbt (2 projects, 19 models, staging + marts, schema tests) | ✅ Complete |
+| M4 — Analytics Engineering | dbt (2 projects, 15 models + 18 schema tests, staging + marts) | ✅ Complete |
 | M5 — Data Platforms | Bruin asset graph (8 assets, lineage, topological runner) | ✅ Complete |
 | M6 — Batch Processing | Apache Spark (7 rolling features, window functions) | ✅ Complete |
 | M7 — Streaming | Redpanda + Avro + RisingWave (5 materialized views) | ✅ Complete |
@@ -56,7 +63,7 @@ ENTSO-E API / Yahoo Finance / Synthetic
 
 Full coverage audit: [docs/zoomcamp_coverage.md](docs/zoomcamp_coverage.md)
 
-**Test suite: 40 tests, all passing.**
+**Test suite: 115 tests, all passing** (data-engineering core + GNN capstone + energy-forecasting; torch/GAT tests skip cleanly without the `[gnn]` extra).
 
 ## Alpha Research
 
@@ -70,6 +77,33 @@ Full coverage audit: [docs/zoomcamp_coverage.md](docs/zoomcamp_coverage.md)
 | Consistency | IS and OOS IC must share sign and comparable magnitude |
 
 Full factor catalog and validation checklist: [docs/alpha_research.md](docs/alpha_research.md)
+
+## Relational Factors & Energy Forecasting (GNN/GAT)
+
+A graph attention network (GAT) capstone adds *relational* factors — scoring a
+node from its neighbours over a graph — alongside the island (single-node)
+alphas. Two heterogeneous graphs share one GAT kernel: an estimated **correlation
+graph** (equities) and the physical **interconnector graph** (energy). Design:
+[docs/gnn_capstone_design.md](docs/gnn_capstone_design.md).
+
+- **Equities:** the GAT relational composite passes 3/4 research gates on real
+  Yahoo Finance data; attention value-add over the uniform anchor is positive in
+  30/30 seeded runs.
+- **Energy:** day-ahead price *returns* carry no tradeable cross-sectional alpha
+  (an honest cautionary result), so the energy track is reframed as **price /
+  spread forecasting**, scored by skill-vs-persistence against a baseline ladder
+  (persistence → seasonal → no-graph ridge → uniform-graph → GAT). Findings
+  ([docs/energy_forecasting.md](docs/energy_forecasting.md)):
+  - the **interconnector graph improves price-level forecast skill by +0.131**
+    over a no-graph model (validated by a synthetic negative control);
+  - learned attention beats the uniform anchor on **cross-sectional ranking (5/5
+    seeds)**; a congestion edge feature — price-spread proxy *and* real ENTSO-E
+    flow/NTC — did **not** robustly add skill (an honest null, two ways);
+  - on the irreducibly-relational target — **cross-border spreads** — graph message
+    passing beats a both-endpoint model by **+0.056 skill (5/5 seeds)**: the GNN's
+    value concentrates where the target lives on the network.
+
+Canonical experiment record: [docs/gat_experiment_log.md](docs/gat_experiment_log.md).
 
 ## Quick Start
 
@@ -87,6 +121,10 @@ quant-alpha energy-run
 # dlt incremental ingestion
 quant-alpha dlt-energy --start 2024-01-01
 quant-alpha dlt-equity --offline
+
+# GAT relational factors / forecasting (needs the [gnn] extra: pip install -e ".[gnn]")
+quant-alpha gat-equity --offline                   # equity relational composite + four gates
+quant-alpha energy-forecast --source synthetic     # energy price-forecast skill ladder
 
 # Bruin asset graph
 quant-alpha bruin-lineage
@@ -160,8 +198,9 @@ cd dbt_energy_alpha && dbt build --profiles-dir .     # energy marts
 | Module | README |
 |---|---|
 | Data ingestion (Yahoo Finance, ENTSO-E, dlt, synthetic) | [src/quant_alpha/ingestion/README.md](src/quant_alpha/ingestion/README.md) |
-| Alpha factor engine (10 equity + 8 energy factors) | [src/quant_alpha/features/README.md](src/quant_alpha/features/README.md) |
+| Alpha factor engine (10 equity + 8 energy island factors + relational seam) | [src/quant_alpha/features/README.md](src/quant_alpha/features/README.md) |
 | Backtesting (long-short, decay, walk-forward) | [src/quant_alpha/backtest/README.md](src/quant_alpha/backtest/README.md) |
+| Energy forecasting (price/spread skill ladder + GAT, Phase 0–3) | [src/quant_alpha/forecast/README.md](src/quant_alpha/forecast/README.md) |
 | Streaming (Redpanda + RisingWave) | [src/quant_alpha/streaming/README.md](src/quant_alpha/streaming/README.md) |
 | Storage (DuckDB, GCS, BigQuery) | [src/quant_alpha/storage/README.md](src/quant_alpha/storage/README.md) |
 | Batch processing (Spark) | [src/quant_alpha/batch/README.md](src/quant_alpha/batch/README.md) |
@@ -183,6 +222,9 @@ cd dbt_energy_alpha && dbt build --profiles-dir .     # energy marts
 | [docs/alpha_research.md](docs/alpha_research.md) | Research methodology, factor catalog, four-gate validation |
 | [docs/architecture.md](docs/architecture.md) | System layers and production boundary |
 | [docs/cloud_kubernetes.md](docs/cloud_kubernetes.md) | Cloud deployment guide |
+| [docs/gnn_capstone_design.md](docs/gnn_capstone_design.md) | GNN/GAT relational-factor capstone design (seams, two heterogeneous graphs) |
+| [docs/energy_forecasting.md](docs/energy_forecasting.md) | Energy price/spread forecasting reframe — baseline ladder + Phase 0–3 results |
+| [docs/gat_experiment_log.md](docs/gat_experiment_log.md) | Canonical GAT experiment log (E1–E14) |
 
 ## Project Layout
 
@@ -201,14 +243,17 @@ infra/terraform/      GCP IaC (6 files: main/backend/WI/secrets/iam/outputs)
 schemas/              Avro schema definitions
 src/quant_alpha/      Python package
   ingestion/          Yahoo Finance, ENTSO-E, dlt, synthetic generators
-  features/           Equity + energy alpha factor engines
+  features/           Equity + energy alpha factor engines + Factor/Provider seam
+  graph/              Propagate seam, GAT topologies (correlation + interconnector)
+  models/             GAT model (torch / torch-geometric)
+  forecast/           Energy price/spread forecasting — baselines + GAT (Phase 0–3)
   backtest/           Long-short backtest, alpha decay, walk-forward IC
   streaming/          Redpanda producer/consumer + RisingWave streaming SQL
   batch/              Apache Spark feature computation
   platform/           Bruin graph runner, data contracts, quality checks
   storage/            DuckDB, GCS, BigQuery writers
 streamlit_app/        Streamlit research dashboard
-tests/                40-test suite
+tests/                115-test suite (core + GNN capstone + forecasting)
 ```
 
 ## References
@@ -216,6 +261,8 @@ tests/                40-test suite
 - DataTalksClub Data Engineering Zoomcamp: [github.com/DataTalksClub/data-engineering-zoomcamp](https://github.com/DataTalksClub/data-engineering-zoomcamp)
 - Second Foundation: [second-foundation.eu](https://www.second-foundation.eu)
 - Kakushadze, Z. (2016). *101 Formulaic Alphas*. Wilmott.
+- Veličković et al. (2018). *Graph Attention Networks*; Brody et al. (2022). *How Attentive are GATs?* (GATv2).
+- PyTorch Geometric: [pyg.org](https://pyg.org)
 - ENTSO-E Transparency Platform: [transparency.entsoe.eu](https://transparency.entsoe.eu)
 - RisingWave: [risingwave.com](https://risingwave.com)
 - Bruin: [bruin-data.github.io/bruin](https://bruin-data.github.io/bruin/)

@@ -1,0 +1,348 @@
+pageType: table_of_contents
+background:
+  type: solid
+  color: "$background"
+elements:
+  - elementId: toc-badge
+    elementType: text
+    bounds: [60, 40, 300, 20]
+    content:
+      style: "$badge"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p>OVERVIEW</p>
+  - elementId: toc-title
+    elementType: text
+    bounds: [60, 65, 500, 40]
+    content:
+      style: "$pageTitle"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p><strong>Presentation Outline</strong></p>
+  - elementId: toc-divider
+    elementType: shape
+    bounds: [60, 115, 1160, 0]
+    shapeName: straightConnector1
+    border:
+      style: solid
+      width: 1
+      color: "$midGray"
+  - elementId: card-1-bg
+    elementType: shape
+    bounds: [60, 140, 360, 140]
+    shapeName: roundRect
+    adjustments: [3000]
+    fill:
+      type: solid
+      color: "$lightGray"
+  - elementId: card-1-num
+    elementType: shape
+    bounds: [80, 160, 40, 40]
+    shapeName: ellipse
+    fill:
+      type: solid
+      color: "$primary"
+  - elementId: card-1-num-text
+    elementType: text
+    bounds: [80, 160, 40, 40]
+    content:
+      fontSize: 18
+      color: "#FFFFFF"
+      fontFamily: "QuattrocentoSans"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p><strong>1</strong></p>
+  - elementId: card-1-title
+    elementType: text
+    bounds: [135, 160, 260, 40]
+    content:
+      fontSize: 18
+      color: "$text"
+      fontFamily: "QuattrocentoSans"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p><strong>What is Alpha?</strong></p>
+  - elementId: card-1-desc
+    elementType: text
+    bounds: [135, 205, 260, 55]
+    content:
+      fontSize: 14
+      color: "$darkGray"
+      fontFamily: "QuattrocentoSans"
+      lineHeight: 1.4
+      align: [left, top]
+      text: |
+        <p>A plain-language primer for the core concepts</p>
+  - elementId: card-2-bg
+    elementType: shape
+    bounds: [460, 140, 360, 140]
+    shapeName: roundRect
+    adjustments: [3000]
+    fill:
+      type: solid
+      color: "$lightGray"
+  - elementId: card-2-num
+    elementType: shape
+    bounds: [480, 160, 40, 40]
+    shapeName: ellipse
+    fill:
+      type: solid
+      color: "$primary"
+  - elementId: card-2-num-text
+    elementType: text
+    bounds: [480, 160, 40, 40]
+    content:
+      fontSize: 18
+      color: "#FFFFFF"
+      fontFamily: "QuattrocentoSans"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p><strong>2</strong></p>
+  - elementId: card-2-title
+    elementType: text
+    bounds: [535, 160, 260, 40]
+    content:
+      fontSize: 18
+      color: "$text"
+      fontFamily: "QuattrocentoSans"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p><strong>Research Questions</strong></p>
+  - elementId: card-2-desc
+    elementType: text
+    bounds: [535, 205, 260, 55]
+    content:
+      fontSize: 14
+      color: "$darkGray"
+      fontFamily: "QuattrocentoSans"
+      lineHeight: 1.4
+      align: [left, top]
+      text: |
+        <p>Three questions that organise the work</p>
+  - elementId: card-3-bg
+    elementType: shape
+    bounds: [860, 140, 360, 140]
+    shapeName: roundRect
+    adjustments: [3000]
+    fill:
+      type: solid
+      color: "$lightGray"
+  - elementId: card-3-num
+    elementType: shape
+    bounds: [880, 160, 40, 40]
+    shapeName: ellipse
+    fill:
+      type: solid
+      color: "$primary"
+  - elementId: card-3-num-text
+    elementType: text
+    bounds: [880, 160, 40, 40]
+    content:
+      fontSize: 18
+      color: "#FFFFFF"
+      fontFamily: "QuattrocentoSans"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p><strong>3</strong></p>
+  - elementId: card-3-title
+    elementType: text
+    bounds: [935, 160, 260, 40]
+    content:
+      fontSize: 18
+      color: "$text"
+      fontFamily: "QuattrocentoSans"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p><strong>Methodology</strong></p>
+  - elementId: card-3-desc
+    elementType: text
+    bounds: [935, 205, 260, 55]
+    content:
+      fontSize: 14
+      color: "$darkGray"
+      fontFamily: "QuattrocentoSans"
+      lineHeight: 1.4
+      align: [left, top]
+      text: |
+        <p>Platform, A/B design, and leakage controls</p>
+  - elementId: card-4-bg
+    elementType: shape
+    bounds: [60, 310, 360, 140]
+    shapeName: roundRect
+    adjustments: [3000]
+    fill:
+      type: solid
+      color: "$lightGray"
+  - elementId: card-4-num
+    elementType: shape
+    bounds: [80, 330, 40, 40]
+    shapeName: ellipse
+    fill:
+      type: solid
+      color: "$primary"
+  - elementId: card-4-num-text
+    elementType: text
+    bounds: [80, 330, 40, 40]
+    content:
+      fontSize: 18
+      color: "#FFFFFF"
+      fontFamily: "QuattrocentoSans"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p><strong>4</strong></p>
+  - elementId: card-4-title
+    elementType: text
+    bounds: [135, 330, 260, 40]
+    content:
+      fontSize: 18
+      color: "$text"
+      fontFamily: "QuattrocentoSans"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p><strong>Equity Track</strong></p>
+  - elementId: card-4-desc
+    elementType: text
+    bounds: [135, 375, 260, 55]
+    content:
+      fontSize: 14
+      color: "$darkGray"
+      fontFamily: "QuattrocentoSans"
+      lineHeight: 1.4
+      align: [left, top]
+      text: |
+        <p>Attention value-add on 49 US stocks</p>
+  - elementId: card-5-bg
+    elementType: shape
+    bounds: [460, 310, 360, 140]
+    shapeName: roundRect
+    adjustments: [3000]
+    fill:
+      type: solid
+      color: "$lightGray"
+  - elementId: card-5-num
+    elementType: shape
+    bounds: [480, 330, 40, 40]
+    shapeName: ellipse
+    fill:
+      type: solid
+      color: "$primary"
+  - elementId: card-5-num-text
+    elementType: text
+    bounds: [480, 330, 40, 40]
+    content:
+      fontSize: 18
+      color: "#FFFFFF"
+      fontFamily: "QuattrocentoSans"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p><strong>5</strong></p>
+  - elementId: card-5-title
+    elementType: text
+    bounds: [535, 330, 260, 40]
+    content:
+      fontSize: 18
+      color: "$text"
+      fontFamily: "QuattrocentoSans"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p><strong>Energy Track</strong></p>
+  - elementId: card-5-desc
+    elementType: text
+    bounds: [535, 375, 260, 55]
+    content:
+      fontSize: 14
+      color: "$darkGray"
+      fontFamily: "QuattrocentoSans"
+      lineHeight: 1.4
+      align: [left, top]
+      text: |
+        <p>Physical graph & forecasting on 20 EU zones</p>
+  - elementId: card-6-bg
+    elementType: shape
+    bounds: [860, 310, 360, 140]
+    shapeName: roundRect
+    adjustments: [3000]
+    fill:
+      type: solid
+      color: "$lightGray"
+  - elementId: card-6-num
+    elementType: shape
+    bounds: [880, 330, 40, 40]
+    shapeName: ellipse
+    fill:
+      type: solid
+      color: "$primary"
+  - elementId: card-6-num-text
+    elementType: text
+    bounds: [880, 330, 40, 40]
+    content:
+      fontSize: 18
+      color: "#FFFFFF"
+      fontFamily: "QuattrocentoSans"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p><strong>6</strong></p>
+  - elementId: card-6-title
+    elementType: text
+    bounds: [935, 330, 260, 40]
+    content:
+      fontSize: 18
+      color: "$text"
+      fontFamily: "QuattrocentoSans"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p><strong>Contributions</strong></p>
+  - elementId: card-6-desc
+    elementType: text
+    bounds: [935, 375, 260, 55]
+    content:
+      fontSize: 14
+      color: "$darkGray"
+      fontFamily: "QuattrocentoSans"
+      lineHeight: 1.4
+      align: [left, top]
+      text: |
+        <p>Conclusions, lessons, and future work</p>
+  - elementId: toc-footer
+    elementType: shape
+    bounds: [0, 680, 1280, 40]
+    shapeName: rect
+    fill:
+      type: solid
+      color: "$primary"
+  - elementId: toc-footer-left
+    elementType: text
+    bounds: [60, 685, 600, 30]
+    content:
+      fontSize: 12
+      color: "#FFFFFF"
+      fontFamily: "QuattrocentoSans"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p>Relational Alpha Factors · GAT Capstone</p>
+  - elementId: toc-footer-right
+    elementType: text
+    bounds: [1100, 685, 120, 30]
+    content:
+      fontSize: 12
+      color: "#FFFFFF"
+      fontFamily: "QuattrocentoSans"
+      align: [right, middle]
+      wrap: false
+      text: |
+        <p>2</p>

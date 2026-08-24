@@ -6,12 +6,10 @@ from pathlib import Path
 
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from common import ENERGY_DB, EQUITY_DB, ENERGY_TABLES, EQUITY_TABLES, ROOT, load_table, list_tables, pick
+from common import ENERGY_DB, EQUITY_DB, ENERGY_TABLES, EQUITY_TABLES, ROOT, list_tables, pick
 
 st.title("📊 Platform Overview")
 st.caption("Cross-track summary — Second Foundation Energy · US Equities Demo")

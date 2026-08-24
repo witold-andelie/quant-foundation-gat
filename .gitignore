@@ -12,6 +12,19 @@ __pycache__/
 .venv/
 *.egg-info/
 
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.log
+*.run.xml
+*.toc
+*.out
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+
 data/raw/
 data/processed/
 # data/warehouse/  ← committed for Streamlit Cloud demo (20 MB total)
@@ -30,6 +43,7 @@ node_modules/
 .vscode/
 
 # local agent workspaces
+.claude/
 .codegraph/
 .scratch/
 

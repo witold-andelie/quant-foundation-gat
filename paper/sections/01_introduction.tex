@@ -1,0 +1,105 @@
+\chapter{Introduction}
+\label{ch:intro}
+
+Quantitative alpha research scores assets one at a time. A formulaic
+alpha reads a single stock's prices and volumes and emits a number; the
+cross-section of those numbers, ranked, is the signal
+\cite{kakushadze2016alphas}. Yet the assets themselves are anything but
+isolated: equities co-move within sectors and supply chains, and
+European power prices are literally wired together by cross-border
+transmission lines. The premise of this project is that the coupling
+structure is information, and its subject is a careful measurement of
+how much.
+
+The measurement question splits in two, and the split matters. That a
+graph-augmented model outperforms a non-relational baseline is easy to
+show and hard to interpret --- the gain may come from the graph, from
+the extra parameters, or from information the baseline never saw. This
+project therefore fixes the information set (the same island alphas
+every model consumes) and separates two claims: what the \emph{graph}
+adds, measured by an unlearned uniform-propagation anchor, and what
+\emph{learned attention} adds, measured as the gap between a graph
+attention network \cite{velickovic2018gat} and that anchor on the same
+topology. Three research questions organise the work:
+
+\begin{itemize}
+  \item[RQ1] Does learned attention add value over unlearned relational
+    propagation, holding inputs and topology fixed?
+  \item[RQ2] Does one GAT kernel and one evaluation harness transfer
+    across structurally different graphs --- an estimated correlation
+    backbone over US equities and a physical interconnector network over
+    European bidding zones --- without manufacturing false positives?
+  \item[RQ3] On real power-market data, does the physical topology
+    improve forecast skill, and where does its value concentrate?
+\end{itemize}
+
+A reader from outside quantitative finance should carry one picture
+through what follows (\cref{sec:bg-primer} defines the recurring
+vocabulary). Every model in this report is trained on the same task:
+score today's cross-section of assets so that the scores rank the next
+period's price moves, five trading days ahead for equities, one day
+ahead for power. Every model in a comparison also receives the same
+per-asset inputs: ten signals computed from each stock's own prices and
+volumes on the equity track, and each zone's price dynamics plus its
+published fundamentals (load, wind and solar forecasts among them) on
+the energy track. In particular, the graph neural networks here are not
+a vehicle for feeding extra data into price prediction --- whatever
+exogenous drivers exist go to the graph-free baselines too. The
+relational models' only privilege is topological: permission to
+exchange information along edges, estimated return correlations for
+equities and the physical cross-border grid for power. Every headline
+number in this report is therefore a margin, the value of that
+permission with everything else held fixed.
+
+The answers, in brief. On the equity track, learned attention beats the
+uniform anchor in thirty of thirty seeded runs, and the best
+configuration reaches an out-of-sample (OOS) IC of $0.0148 \pm 0.0043$ and
+Sharpe of $1.37 \pm 0.39$ over five seeds; the resulting composite
+passes three of four research gates but never beats the single best
+island alpha, a failure this report states as plainly as the successes
+(\cref{ch:equity}). On the energy track the alpha framing collapsed
+honestly: three nested evaluation artifacts each produced spectacular
+numbers before the project's own controls caught them, and under honest
+returns the strategy loses money (\cref{ch:energy}). Reframed as
+forecasting, the same track produced the project's cleanest positives:
+the interconnector graph lifts node-level price forecast skill by
+$+0.131$ over a no-graph baseline with identical drivers, and on the
+irreducibly relational target --- cross-border spreads --- message
+passing beats a both-endpoint baseline in five of five seeds
+(\cref{sec:en-edge}).
+
+Five contributions follow from this, each defended in a named part of
+the report. First, an isolation methodology for relational factors:
+matched no-learning anchors, four research gates, and structural
+leakage controls, defined once in \cref{ch:methodology} and reused
+unchanged by every experiment. Second, the equity result itself ---
+attention's margin over naive propagation as a distribution over seeds,
+devices, and configurations rather than a point estimate, together with
+an interpretability analysis showing the mechanism to be a gentle,
+stationary reweighting of mean pooling (\cref{ch:equity}). Third, a
+worked cautionary example: the energy alpha arc of
+\cref{ch:energy}, in which the project's own controls catch three
+artifacts in sequence, ending in a verdict --- rank correlation can be
+positive while the strategy loses money --- that generalises beyond
+power markets. Fourth, the forecasting reframe and its control-validated
+graph value, concentrated on the relational target
+(\cref{sec:en-forecast,sec:en-edge}). Fifth, the platform engineering
+that makes the rest reproducible: two seams that let island and
+relational factors share one pipeline, warehouse marts built from
+research runs, and a test suite that pins the leakage-critical logic
+(\cref{ch:platform}).
+
+A note on standards. This is a Master's capstone report, and the working
+assumption throughout is that its most valuable output is not a
+headline Sharpe but a defensible measurement process. Wherever a result
+died under scrutiny, the scrutiny and the death are in the text; the
+negative results are load-bearing, not confessional.
+
+The report proceeds as follows. \Cref{ch:background} places the work in
+the alpha-research, GNN, and electricity-forecasting literatures.
+\Cref{ch:platform} describes the platform and the two seams.
+\Cref{ch:methodology} fixes the measurement apparatus.
+\Cref{ch:equity,ch:energy} report the two tracks.
+\Cref{ch:discussion} confronts threats to validity, and
+\cref{ch:conclusion} closes with what a successor project should do
+differently.

@@ -1,0 +1,79 @@
+\chapter{Reproducibility}
+\label{app:repro}
+
+Everything claimed in this report can be regenerated from the
+repository.\footnote{\url{https://github.com/witold-andelie/quant-foundation-gat}}
+This appendix records the environment, the commands, and the
+mapping from experiment to archived artifact.
+
+\section*{Environment}
+
+Python 3.13 with \texttt{torch 2.12.0} and \texttt{torch\_geometric}
+(installed via the project's \texttt{[gnn]} extra); \texttt{PYTHONPATH}
+set to \texttt{src}. All headline experiments ran on CPU --- a
+deliberate choice after the device study of \cref{sec:eq-variance} ---
+with the device recorded per experiment. The equity track fetches
+market data through \texttt{yfinance}; the energy track runs on the
+synthetic generator by default and on live ENTSO-E data when an API
+token is supplied via the \texttt{ENTSOE\_API\_KEY} environment
+variable. The warehouse and marts require \texttt{duckdb},
+\texttt{dbt-core}, and \texttt{dbt-duckdb}; the GAT pipeline itself does
+not.
+
+\section*{Tests}
+
+The full suite is 115 tests; 55 of them cover the capstone modules
+(graph construction, training primitives, propagators, factor
+providers, both track runners, attention analysis, and the leakage
+controls). The leakage controls --- shuffle-label negative control and
+planted-signal positive control --- are pinned to CPU for determinism
+and run on every change. \texttt{py -m pytest} from the repository root
+executes everything.
+
+\section*{Experiments and artifacts}
+
+Each experiment entry in the log (\texttt{docs/gat\_experiment\_log.md},
+entries E1--E14) names its run script and its archived outputs. The run
+scripts are one-off drivers kept in an untracked scratch area outside
+the published repository; each log entry records the configuration they
+ran --- model variant, seeds, hyperparameters, device --- and the CLI
+commands below drive the same pipelines. The outputs --- per-run
+diagnostics, matrix, seed, hyperparameter-grid, winner-validation,
+energy, and attention CSV/JSON files, plus five attention figures ---
+are date-prefixed under \texttt{docs/results/}. The canonical trained
+equity weights are tracked at
+\path{data/warehouse/gat_equity.pt}. Every quantitative table in
+this report is generated mechanically from those archived CSVs; no
+result number in the text was typed by hand from memory.
+
+\section*{Command reference}
+
+The equity pipeline:
+\begin{verbatim}
+quant-alpha gat-equity --graph {static,dynamic}
+                       --retrain {single,walk-forward}
+                       --loss {ic,mse}
+                       --device {cpu,cuda,auto}
+                       --persist
+\end{verbatim}
+runs end to end and, with \texttt{--persist}, writes the four warehouse
+tables of \cref{sec:pl-loop}. The energy alpha runner is
+\texttt{run\_gat\_energy} (synthetic or \texttt{source="entsoe"}); the
+forecasting ladder is \texttt{quant-alpha energy-forecast --source
+\{synthetic,entsoe\} --k 24} with a \texttt{--raw-path} Parquet cache
+for repeatable real-data runs. The marts rebuild with
+\texttt{dbt build --profiles-dir .} inside \texttt{dbt\_quant\_alpha/}
+(21 models and tests) and \texttt{dbt\_energy\_alpha/} (12). The
+report's build script regenerates the tables and figures from the
+repository's artifacts and reference data and then runs
+\texttt{pdflatex} and \texttt{biber}.
+
+\section*{What reproducibility means here}
+
+As established in \cref{sec:eq-variance}, bit-exact replication across
+devices is not attainable for CUDA-adjacent training stacks and is not
+claimed. Rerunning any experiment with the recorded seeds on a CPU of
+the same class reproduces the reported distributions --- means and
+standard deviations over five or more seeds --- and every individual
+archived run is identified by seed, device, configuration, and date in
+its artifact file.

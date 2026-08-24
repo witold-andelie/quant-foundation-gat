@@ -1,0 +1,15 @@
+\begin{table}[htbp]
+  \centering
+  \small
+  \caption{Edge-level cross-border spread prediction (38 borders, OOS, $k=24$h, 5-seed means).}
+  \label{tab:energy-edge-skill}
+  \begin{tabular}{lll>{\raggedright\arraybackslash}p{0.34\textwidth}}
+    \toprule
+    predictor & skill & rank ic & note \\
+    \midrule
+    edge\_persistence & 0.000 &  & spread today (reference) \\
+    edge\_ridge & 0.192 & 0.67 & both endpoints' day-ahead drivers + current spread (no graph) \\
+    edge\_gat & 0.248 & 0.68 & GAT node embeddings $\to$ edge MLP head (message passing; 5-seed mean) \\
+    \bottomrule
+  \end{tabular}
+\end{table}

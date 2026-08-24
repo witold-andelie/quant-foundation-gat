@@ -1,0 +1,15 @@
+digraph iso {
+  rankdir=LR;
+  ranksep=0.55; nodesep=0.45;
+  node [shape=box, style=rounded, fontname="Helvetica", fontsize=11, margin="0.16,0.10"];
+  edge [fontname="Helvetica", fontsize=10, color=gray30, fontcolor=gray25];
+  feat   [label="ranked island-factor matrix\n(identical input for all three)"];
+  island [label="island anchor\nequal-weight mean,\nno propagation"];
+  unif   [label="uniform anchor\nunweighted neighbour mean\nover the topology"];
+  gat    [label="GAT\nlearned attention\nover the same topology"];
+  harn   [label="one evaluation harness\nembargoed splits, research gates,\nleakage controls (OOS)"];
+  feat -> island; feat -> unif; feat -> gat;
+  island -> harn; unif -> harn; gat -> harn;
+  island -> unif [style=dashed, dir=none, constraint=false, label="what the graph adds"];
+  unif -> gat    [style=dashed, dir=none, constraint=false, label="attention value-add"];
+}

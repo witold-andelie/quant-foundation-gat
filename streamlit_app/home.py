@@ -69,6 +69,17 @@ with c5:
     n_alphas = len(registry) if not registry.empty else "—"
     st.metric("Alpha factors", n_alphas)
 
+if is_energy:
+    st.warning(
+        "⚠️ **Baseline Notice (Energy Track):** The multi-alpha metrics above represent the **Naive Unpruned Long/Short Baseline** (E13b). Under honest unclipped returns, cross-sectional power trading yields negative PnL due to scarcity spikes. "
+        "This motivated our scientific reframe to **Power Price & Spread Forecasting with GNNs** on **[Page 8 (GAT & Forecasting)](GAT_Forecasting)** (Skill: **+0.131** node / **+0.056** edge spread)."
+    )
+else:
+    st.info(
+        "ℹ️ **Baseline Notice (Equity Track):** The metrics above represent the **Naive Multi-Alpha Baseline** (unpruned equal-weighted average of 10 raw factors without graph relational learning, resulting in Sharpe -1.39 / Return -44.1%). "
+        "When enhanced with **GAT Relational Graph Attention** on **[Page 8 (GAT & Forecasting)](GAT_Forecasting)**, the strategy achieves **OOS Sharpe +0.35 ~ +1.40** and reduces Max Drawdown from **-60.1% to -4.9%**."
+    )
+
 st.divider()
 st.subheader("Research Modules")
 st.caption("Click any card to dive into that module")
@@ -89,6 +100,8 @@ CARDS = [
      "tagline": "Bruin lineage · table inventory · quality · null rates"},
     {"icon": "📊", "title": "Cross-Track Overview", "page": "pages/7_Overview.py",
      "tagline": "Energy + Equity side-by-side · 11-module health matrix"},
+    {"icon": "🕸️", "title": "GAT & Forecasting",   "page": "pages/8_GAT_Forecasting.py",
+     "tagline": "Relational factors · skill ladder · edge-level spread · E14 findings"},
 ]
 
 def _render_card(card: dict):
@@ -121,9 +134,9 @@ for col, card in zip(row1, CARDS[:4]):
     with col:
         _render_card(card)
 
-# Row 2: 3 cards (last column intentionally empty for visual balance)
+# Row 2: 4 cards
 row2 = st.columns(4)
-for col, card in zip(row2[:3], CARDS[4:]):
+for col, card in zip(row2, CARDS[4:]):
     with col:
         _render_card(card)
 

@@ -1,0 +1,55 @@
+pageType: cover
+background:
+  type: solid
+  color: "$background"
+elements:
+  - elementId: cover-title
+    elementType: text
+    bounds: [140, 180, 1000, 160]
+    content:
+      style: "$title"
+      align: [center, middle]
+      text: |
+        <p><strong>Relational Alpha Factors</strong></p>
+        <p><strong>with Graph Attention Networks</strong></p>
+  - elementId: cover-subtitle
+    elementType: text
+    bounds: [140, 360, 1000, 80]
+    content:
+      fontSize: 22
+      color: "$text"
+      fontFamily: "QuattrocentoSans"
+      lineHeight: 1.4
+      align: [center, middle]
+      text: |
+        <p>A Dual-Track Study on US Equities and European Power Markets</p>
+  - elementId: cover-divider
+    elementType: shape
+    bounds: [540, 460, 200, 0]
+    shapeName: straightConnector1
+    border:
+      style: solid
+      width: 2
+      color: "$primary"
+  - elementId: cover-author
+    elementType: text
+    bounds: [140, 490, 1000, 40]
+    content:
+      fontSize: 18
+      color: "$darkGray"
+      fontFamily: "QuattrocentoSans"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p>Wentao Ma  ·  Master's Capstone Report</p>
+  - elementId: cover-date
+    elementType: text
+    bounds: [140, 540, 1000, 30]
+    content:
+      fontSize: 16
+      color: "$darkGray"
+      fontFamily: "QuattrocentoSans"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p>July 2026</p>

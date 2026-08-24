@@ -1,0 +1,88 @@
+\chapter{Platform Architecture}
+\label{ch:platform}
+
+The research of \cref{ch:equity,ch:energy} runs on a data-engineering
+platform that was prior work to this project; the project's architectural
+contribution is the pair of seams that let relational factors join that
+platform without forking it, and the loop that carries research outputs
+back into the warehouse. This chapter describes the platform in the
+depth the later chapters rely on --- enough to make every named
+component findable in the repository --- and no further.
+
+\section{The layered platform}
+\label{sec:pl-layers}
+
+The platform follows a conventional analytics layering. Ingestion
+fetches daily equity bars (Yahoo Finance), deterministic synthetic
+prices for offline work, and the ENTSO-E power-market series used in
+\cref{ch:energy}: day-ahead prices, load and renewable forecasts,
+realised load, generation mix, and physical cross-border flows with
+transfer capacities \cite{entsoe-tp}. Raw and processed data land as
+Parquet files in a local data lake. The warehouse is DuckDB
+\cite{raasveldt2019duckdb}, chosen for zero-infrastructure local
+reproducibility --- anyone with the repository can rebuild every table.
+Transformations are split by nature: factor mathematics lives in Python,
+while warehouse marts are dbt models \cite{dbt} so that derived tables
+are declarative, tested, and documented. A Kestra flow orchestrates the
+daily equity and hourly energy pipelines, and a Streamlit dashboard is
+the read-only application layer.
+
+One boundary is stated in the architecture documentation and repeated
+here: the platform is a research and portfolio-demonstration system. It
+places no orders, manages no broker state, and offers no investment
+advice.
+
+\section{Two seams instead of a fork}
+\label{sec:pl-seams}
+
+The capstone's design problem was to add a second \emph{family} of
+factors --- relational ones --- to a platform whose registries, apply
+step, backtests, and marts all assumed island factors. The naive
+solution is a parallel pipeline; the project's solution is two narrow
+interfaces, fixed in architecture decision records before implementation.
+
+The first seam is the propagator: one snapshot's node features and
+topology in, one factor value per node out. Both the unlearned baseline
+(uniform neighbour averaging) and the trained GAT are adapters on this
+single interface. The seam is deliberately per-snapshot and
+transform-only --- training happens elsewhere, weights are bound at
+construction --- which keeps it a pure, testable function and keeps
+attention behind the interface rather than in it. The design consequence
+carried through both result chapters: because baseline and GAT share one
+seam, the attention A/B of \cref{sec:anchors} is a one-line adapter
+swap, not a comparison across two code paths that might differ in
+untracked ways. A characterisation test pins the equivalence: the
+uniform propagator on a fully-connected topology must reproduce the
+platform's pre-existing cross-market mean exactly.
+
+The second seam unifies factor declaration. The two tracks had grown two
+factor idioms --- equity as metadata plus a compute callable, energy as
+metadata interpreted by a monolithic imperative function. One
+\texttt{Factor} contract over the canonical \emph{(time, entity)} panel,
+plus a \texttt{FactorProvider} interface for anything that yields
+factors, absorbed both: the energy legacy path is wrapped as one
+provider, and the graph factor is simply another, whose compute closes
+over a propagator and a topology source and runs the per-snapshot loop
+internally. At the registry and apply layer, island and relational
+factors are indistinguishable --- which is precisely what makes the
+four-gate comparison of \cref{sec:gates} a fair one, since every factor
+reaches the evaluation through the same code.
+
+\section{From research run to warehouse mart}
+\label{sec:pl-loop}
+
+Research results do not live in notebooks. A persistence step flattens a
+GAT run into four warehouse tables --- the factor panel (composite,
+anchors, and island alphas per date and symbol), per-alpha diagnostics,
+the four gates as a one-row report, and the attention A/B as another ---
+and dbt models build the presentation layer on top: a staging view over
+the panel, a tiered factor-versus-baseline mart, and a one-row scorecard
+joining gates to the A/B. The dashboard reads the marts, not the
+research code. The practical effect showed up during this report's own
+preparation: rebuilding the marts end-to-end (21 dbt models and tests on
+the equity warehouse, 12 on the energy warehouse) is a single command
+per project, and the full test suite --- 115 tests, of which 55 belong
+to the capstone modules --- is the reproducibility contract for
+everything the previous chapters claimed. The leakage-critical pieces
+(labels, splits, rank-IC) are deliberately pure pandas so they are
+testable without the GNN dependency stack.

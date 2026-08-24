@@ -1,0 +1,88 @@
+\chapter{Discussion}
+\label{ch:discussion}
+
+Every limitation below is a deliberate scope choice or a measured
+finding, not an oversight discovered in retrospect; several are results
+in their own right. This chapter names each threat to validity in the
+standard vocabulary and states where the project mitigated it, and where
+it simply lives with it.
+
+\paragraph{Look-ahead bias.} The report contains a full worked example
+of this threat rather than merely a disclaimer: the energy track's first
+real-data result (\cref{sec:en-artifact}) was look-ahead bias in two of
+its three layers, and the diagnostic arc that dismantled it is the
+chapter. On the equity track one mild instance is disclosed and
+retained: the static correlation graph is built from data up to the
+split date, so early \emph{training} snapshots see a graph estimated
+partly from their own future. The out-of-sample window is unaffected ---
+the graph strictly predates it --- and the clean alternative, the
+dynamic graph, was rejected because it performs worse
+(\cref{sec:eq-ablation}). Disclosure was chosen over a cosmetic fix that
+costs real out-of-sample performance.
+
+\paragraph{Survivorship bias.} The equity universe is roughly fifty
+hand-picked, currently listed US large caps fetched from a free vendor.
+Names that failed or delisted over 2021--2026 are absent, which inflates
+the absolute level of every Sharpe in \cref{ch:equity}. The core claim
+is deliberately insulated: the attention A/B compares models on the
+\emph{same} biased universe, so the bias raises both sides of the
+comparison rather than manufacturing the gap. Absolute levels should be
+read as optimistic; relative margins are the load-bearing numbers. A
+survivorship-bias-free vendor is the single highest-value data upgrade a
+successor project could make.
+
+\paragraph{Overfitting and data snooping.} Ten alphas, one composite,
+and repeated evaluation on one out-of-sample window invite snooping; the
+four gates exist to police exactly this, and the hyperparameter search
+was designed so the out-of-sample window could not influence selection
+(\cref{sec:eq-hp}). The residual risks are stated rather than waved
+away: the walk-forward advantage is significant only within the tuned
+configuration ($n=5$ per arm) and is otherwise a directional claim; the
+flat hyperparameter surface cuts both ways, as robustness and as a
+warning that tuning gains here are mostly noise; and the energy
+forecasting results rest on a single six-month window with untuned
+hyperparameters. The two synthetic negative controls and the
+shuffle-label control (\cref{sec:eq-controls,sec:en-negcontrol}) are the
+strongest argument that the pipeline as a whole does not snoop.
+
+\paragraph{Transaction costs and tradability.} No result in this report
+is net of costs: there is no fill model, no spread, no market impact.
+The equity Sharpe of 1.37 is a paper Sharpe on daily bars, and a
+five-day-horizon long-short over fifty names would face real turnover
+costs. The energy track makes the point more brutally --- its strategy
+loses money \emph{before} any costs are applied
+(\cref{sec:en-clip}), and the E13b lesson (rank quality does not imply
+profitability when tails carry the money) would only sharpen under a
+cost model. The platform's stated production boundary
+(\cref{sec:pl-layers}) is consistent with this: nothing here is a
+trading system.
+
+\paragraph{Regime dependence and external validity.} All equity claims
+rest on a single 5.5-year window of one market regime, at one horizon
+($k=5$ days), on one universe; all energy forecasting claims on six
+months of one calendar year, at one horizon ($k=24$ hours), on twenty
+zones. The attention analysis itself argues against over-generalising:
+the learned structure is temporally stationary
+(\cref{sec:eq-attention}), so the project's own evidence says the model
+found a stable statistical regularity, not a regime-adaptive mechanism.
+Whether either result survives a different half-decade is untested.
+
+\paragraph{Reproducibility.} What is reproducible is the distribution,
+not the point: the same seed produces different results on different
+devices, for identified mechanical reasons (\cref{sec:eq-variance}).
+All headline numbers are therefore means over at least five seeds on a
+fixed device, the test suite pins the leakage-critical logic, and the
+archived per-run artifacts allow every table in this report to be
+regenerated. Bit-exact cross-device replication is not claimed and, on
+CUDA, not attainable.
+
+\paragraph{The open gate.} The relational composite never beat the best
+single island alpha --- an OOS Sharpe of roughly 1.4 against roughly 3
+--- and this report resists the temptation to soften that bar
+post hoc. Two softer readings are available and honestly labelled as
+softer: the composite beats nine of its ten inputs, and it is nearly
+uncorrelated with all of them (maximum 0.26), which for a practitioner
+suggests portfolio value that the max-of-singles gate does not measure.
+A marginal-contribution-to-a-multifactor-portfolio reading is the
+natural next evaluation, planned but not executed within this project's
+scope.

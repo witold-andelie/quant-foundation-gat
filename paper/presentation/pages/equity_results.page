@@ -1,0 +1,239 @@
+pageType: content
+background:
+  type: solid
+  color: "$background"
+elements:
+  - elementId: badge
+    elementType: text
+    bounds: [60, 40, 300, 20]
+    content:
+      style: "$badge"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p>EQUITY TRACK RESULTS</p>
+  - elementId: title
+    elementType: text
+    bounds: [60, 65, 900, 40]
+    content:
+      style: "$pageTitle"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p><strong>Headline Evidence: 30 of 30 Seeds Positive</strong></p>
+  - elementId: divider
+    elementType: shape
+    bounds: [60, 115, 1160, 0]
+    shapeName: straightConnector1
+    border:
+      style: solid
+      width: 1
+      color: "$midGray"
+  - elementId: table
+    elementType: table
+    bounds: [60, 130, 1160, 270]
+    style: "$default"
+    columnWidths: [0.22, 0.28, 0.50]
+    rowHeights: [0.16, 0.14, 0.14, 0.14, 0.14, 0.14, 0.14]
+    rows:
+      - - content:
+            text: |
+              <p>Metric</p>
+        - content:
+            text: |
+              <p>Value</p>
+        - content:
+            text: |
+              <p>Note</p>
+      - - content:
+            text: |
+              <p>Gates passed</p>
+        - content:
+            text: |
+              <p><strong>3 / 4</strong></p>
+        - content:
+            text: |
+              <p>Uniqueness + Consistency + Robustness pass; Value-added fails</p>
+      - - content:
+            text: |
+              <p>Attention value-add</p>
+        - content:
+            text: |
+              <p><strong>30 / 30</strong> seeds positive</p>
+        - content:
+            text: |
+              <p>vs uniform anchor (no learned attention)</p>
+      - - content:
+            text: |
+              <p>Best validation IC</p>
+        - content:
+            text: |
+              <p>0.0756</p>
+        - content:
+            text: |
+              <p>Best-by-valid-IC checkpoint selection</p>
+      - - content:
+            text: |
+              <p>Composite OOS Sharpe</p>
+        - content:
+            text: |
+              <p><strong>1.37 ± 0.39</strong></p>
+        - content:
+            text: |
+              <p>vs best single factor 2.88 (beats 9 of 10 singles)</p>
+      - - content:
+            text: |
+              <p>Walk-forward OOS IC</p>
+        - content:
+            text: |
+              <p><strong>0.0148 ± 0.0043</strong></p>
+        - content:
+            text: |
+              <p>All 5 seeds positive; mean 3.4σ above zero</p>
+      - - content:
+            text: |
+              <p>Graph</p>
+        - content:
+            text: |
+              <p>Correlation top-k + sectors</p>
+        - content:
+            text: |
+              <p>49 US names, 2021–2026, static graph</p>
+  - elementId: big-number-1-bg
+    elementType: shape
+    bounds: [60, 420, 360, 110]
+    shapeName: roundRect
+    adjustments: [3000]
+    fill:
+      type: solid
+      color: "$primary"
+  - elementId: big-number-1-val
+    elementType: text
+    bounds: [70, 425, 340, 50]
+    content:
+      fontSize: 36
+      color: "#FFFFFF"
+      fontFamily: "QuattrocentoSans"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p><strong>30/30</strong></p>
+  - elementId: big-number-1-label
+    elementType: text
+    bounds: [70, 480, 340, 40]
+    content:
+      fontSize: 14
+      color: "#FFFFFF"
+      fontFamily: "QuattrocentoSans"
+      lineHeight: 1.3
+      align: [center, middle]
+      text: |
+        <p>positive attention value-add across seeds, configs, and devices</p>
+  - elementId: big-number-2-bg
+    elementType: shape
+    bounds: [460, 420, 360, 110]
+    shapeName: roundRect
+    adjustments: [3000]
+    fill:
+      type: solid
+      color: "$secondary"
+  - elementId: big-number-2-val
+    elementType: text
+    bounds: [470, 425, 340, 50]
+    content:
+      fontSize: 36
+      color: "#FFFFFF"
+      fontFamily: "QuattrocentoSans"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p><strong>0.0148</strong></p>
+  - elementId: big-number-2-label
+    elementType: text
+    bounds: [470, 480, 340, 40]
+    content:
+      fontSize: 14
+      color: "#FFFFFF"
+      fontFamily: "QuattrocentoSans"
+      lineHeight: 1.3
+      align: [center, middle]
+      text: |
+        <p>OOS rank-IC (±0.0043) — a real but weak signal</p>
+  - elementId: big-number-3-bg
+    elementType: shape
+    bounds: [860, 420, 360, 110]
+    shapeName: roundRect
+    adjustments: [3000]
+    fill:
+      type: solid
+      color: "$accent"
+  - elementId: big-number-3-val
+    elementType: text
+    bounds: [870, 425, 340, 50]
+    content:
+      fontSize: 36
+      color: "#FFFFFF"
+      fontFamily: "QuattrocentoSans"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p><strong>3/4</strong></p>
+  - elementId: big-number-3-label
+    elementType: text
+    bounds: [870, 480, 340, 40]
+    content:
+      fontSize: 14
+      color: "#FFFFFF"
+      fontFamily: "QuattrocentoSans"
+      lineHeight: 1.3
+      align: [center, middle]
+      text: |
+        <p>gates pass — Value-added remains open (honest reporting)</p>
+  - elementId: insight-bar
+    elementType: shape
+    bounds: [60, 550, 1160, 60]
+    shapeName: roundRect
+    adjustments: [3000]
+    fill:
+      type: solid
+      color: "$lightGray"
+  - elementId: insight-text
+    elementType: text
+    bounds: [80, 555, 1120, 50]
+    content:
+      fontSize: 16
+      color: "$text"
+      fontFamily: "QuattrocentoSans"
+      lineHeight: 1.4
+      align: [left, middle]
+      text: |
+        <p><strong>Honest reading:</strong> The composite is a real, unique, consistent signal — 2nd-best of 11 factors — but it does NOT beat the single best island alpha. We report this as an open gate.</p>
+  - elementId: footer-bar
+    elementType: shape
+    bounds: [0, 680, 1280, 40]
+    shapeName: rect
+    fill:
+      type: solid
+      color: "$primary"
+  - elementId: footer-left
+    elementType: text
+    bounds: [60, 685, 600, 30]
+    content:
+      fontSize: 12
+      color: "#FFFFFF"
+      fontFamily: "QuattrocentoSans"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p>Relational Alpha Factors · GAT Capstone</p>
+  - elementId: footer-right
+    elementType: text
+    bounds: [1100, 685, 120, 30]
+    content:
+      fontSize: 12
+      color: "#FFFFFF"
+      fontFamily: "QuattrocentoSans"
+      align: [right, middle]
+      wrap: false
+      text: |
+        <p>7</p>

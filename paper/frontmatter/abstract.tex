@@ -1,0 +1,38 @@
+\chapter*{Abstract}
+
+Cross-sectional alpha factors score assets in isolation, yet the assets
+are coupled --- statistically in equity markets, physically in European
+power markets. This report measures what that coupling structure is
+worth. To make the measurement interpretable, the information set is
+held fixed and two questions are separated: what a graph adds, measured
+against an unlearned uniform-propagation anchor, and what learned
+attention adds, measured as a graph attention network's margin over that
+anchor on the same topology. One GAT kernel, one leakage-controlled
+evaluation harness, and one suite of research gates run on two
+structurally different graphs: an estimated correlation backbone over 49
+US equities and the physical interconnector network over 20 European
+bidding zones.
+
+On equities, learned attention beats unlearned propagation in 30 of 30
+seeded runs; the best configuration reaches an out-of-sample rank-IC of
+$0.0148 \pm 0.0043$ and long-short Sharpe of $1.37 \pm 0.39$ over five
+seeds. The resulting composite factor is unique, consistent, and robust
+--- three of four gates --- but never beats the best single input
+factor. Attention analysis explains the modesty: the model applies a
+stationary, near-uniform reweighting of neighbour pooling, not sharp
+selection. On energy, the alpha framing failed in an instructive way:
+three nested evaluation artifacts --- overlapping labels, wrong
+annualisation, and a clip on the evaluation return that concealed
+short-leg tail losses --- each produced spectacular numbers before
+being caught by the project's own controls, and under honest returns
+the strategy loses money. Reframed as forecasting, the energy track
+yields the cleanest relational evidence: the interconnector graph lifts
+node-level price forecast skill by $+0.131$ over an identically
+informed no-graph baseline, and on cross-border spreads --- a target
+that does not exist without the relation --- message passing beats a
+both-endpoint baseline in five of five seeds ($+0.056$ skill).
+
+The report's contributions are the isolation methodology, the two
+measured results, a worked three-artifact cautionary example for
+GNN-based market research, and the platform engineering that makes all
+of it reproducible from archived artifacts.

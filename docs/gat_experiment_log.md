@@ -203,8 +203,9 @@ scope choice, not an oversight, and several are themselves results.
 - **Warehouse / dbt.** `--persist` (or `persist_gat_outputs`) writes four tables
   to DuckDB; the dbt models `stg_gat_panel`, `fct_gat_vs_baseline` (tiered
   relational A/B), and `fct_gat_scorecard` (one-row gates + attention A/B)
-  surface the results for querying/BI. duckdb + dbt live in a venv at
-  `D:\duckdb` (kept off the C: drive); the GAT pipeline itself needs no duckdb.
+  surface the results for querying/BI. duckdb + dbt are installed in the system
+  Python 3.13 (2026-07-02, replacing the old `D:\duckdb` venv); the GAT
+  pipeline itself needs no duckdb.
   Run: `dbt run/test --profiles-dir . --select fct_gat_vs_baseline
   fct_gat_scorecard` from `dbt_quant_alpha/`.
 
@@ -917,6 +918,108 @@ transferable methodological contribution. Equity remains the genuine value
 result; energy is the cautionary-methodology result.
 
 ---
+
+## E14 — Energy forecasting reframe + congestion-aware GAT (2026-06-24)
+
+**Motivation.** E13b closed the energy *alpha* question (no tradeable
+cross-sectional alpha). E14 reframes the energy track as **price forecasting**
+and asks two answerable questions: (1) does the interconnector graph improve
+forecast skill, and (2) does **congestion-aware** learned attention beat both an
+unlearned-graph anchor and a plain GAT? Code: `src/quant_alpha/forecast/`
+(`target`/`skill`/`baselines`/`evaluate`/`gat`), `docs/energy_forecasting.md`.
+
+**Setup.** Real ENTSO-E day-ahead data, 20 bidding zones, 2024-01..06 (87,360
+rows), enriched pull (load/wind/solar forecasts + actual load + A75 generation
+mix). Target = next-period price `spot[t+k]`; metric = skill score
+`1 − MSE/MSE(persistence)` (+ MAE, rank-IC), OOS. Baseline ladder: persistence,
+seasonal-naive, no-graph ridge, uniform-graph ridge (neighbour-mean over the
+interconnector graph), and a pure-torch dense GAT (`gat_node`, `gat_congestion`).
+Congestion edge feature = current cross-border price spread `|spot_i−spot_j|`
+(leak-safe). k=24h.
+
+**Results.**
+
+| rung | skill | MAE | rank_ic |
+|---|---|---|---|
+| uniform_graph_ridge | 0.355 | 21.40 | 0.584 |
+| gat_congestion | 0.351 | 20.02 | 0.629 |
+| gat_node | 0.343 | 20.16 | 0.619 |
+| no_graph_ridge | 0.224 | 23.20 | 0.636 |
+| persistence | 0.000 | 23.88 | 0.637 |
+
+- **Graph lift** (uniform − no_graph): **+0.131** skill. Synthetic control
+  (independent zones) gives ~0 → the lift is genuine cross-zonal coupling, not an
+  artifact (the same C1 "no false positives" guard as the alpha track).
+- **Congestion lift** (gat_congestion − gat_node), 5 seeds, is **implementation-
+  dependent and NOT robust**: pure-torch dense GAT gave +0.031 skill (5/5), but
+  the standard **PyG GATv2 gives −0.002 (2/5, std 0.028)**. A single-seed PyG
+  cross-check had shown +0.072 — a lucky draw the multi-seed run corrected.
+- **GAT vs uniform** (PyG, 5 seeds): rank_ic 0.61 vs 0.58 (**beats 5/5**); skill
+  0.347 vs 0.355 (**beats only 2/5** — a wash).
+
+**Findings (honest).**
+
+1. **The interconnector graph carries real forecast value on real data**
+   (+0.131 skill over no-graph), validated against a synthetic negative control.
+   Pure numpy, implementation-independent. The reframe works where the alpha
+   framing did not.
+2. **Learned attention robustly beats the uniform anchor on cross-sectional
+   ranking** (PyG rank_ic 0.61 vs 0.58, 5/5 seeds) but is a **wash on MSE-skill**
+   (beats uniform 2/5). Uniform neighbour-averaging is near MSE-optimal — a hard
+   bar; the GAT's robust edge is ranking, not RMSE.
+3. **The congestion edge feature does NOT robustly add skill.** The dense GAT's
+   +0.031 (5/5) did not replicate under PyG GATv2 (−0.002, 2/5). The grid-
+   congestion hypothesis is *not refuted*, but the price-spread proxy is too
+   weak/noisy to confirm it under a like-for-like seed test.
+
+**Verdict.** Honest, partly-null result. Robust: graph structure helps (+0.131)
+and learned attention improves cross-sectional ranking over uniform (5/5). Not
+confirmed: that congestion-aware attention adds *skill* — it is implementation-
+dependent and a wash under PyG. Not a value/alpha claim.
+
+**Methodology note — why two backends.** The GAT was first hand-rolled (dense
+attention, no torch_geometric); a reviewer-style "is the no-PyG result
+trustworthy?" prompted a PyG `GATv2Conv` re-run sharing the same leak-safe prep
+(`forecast/gat.py`, `backend="pyg"|"dense"`). The two agree on the regime and on
+findings 1-2, but **disagree on the congestion lift** — which is exactly how the
+cross-implementation check earned its keep: it caught a fragile, implementation-
+specific effect before it became a claim. PyG is now the default backend.
+
+**Phase 2b — ground-truth congestion (real flow/NTC).** Fetched directed
+cross-border physical flows (A11) + day-ahead NTC (A61/A01) for all 38
+interconnector borders (`fetch_entsoe_cross_border`), built a symmetric
+congestion grid ``|flow|/capacity`` (`build_congestion_grid`) and ran it as the
+edge feature. Result (PyG, 5 seeds): flow-congestion skill 0.345 vs node-only
+0.349 — **flow vs node +/-0: 1/5 positive; flow vs spread-proxy: 2/5; vs uniform:
+2/5**. rank_ic 0.615 (beats uniform 5/5, like the other GAT rungs). **The
+congestion hypothesis is not supported under either operationalisation (spread
+proxy 2/5, ground-truth flow/NTC 1/5)** — real congestion data did not rescue it.
+Caveat (why "not supported", not "refuted"): NTC coverage was only 36% — the most
+coupled CWE borders use flow-based market coupling (shadow prices on critical
+network elements), which a ``|flow|/capacity`` ratio does not capture and which
+ENTSO-E publishes very differently; and congestion's effect is threshold-like, not
+the smooth additive edge term modelled. Cross-border data cached
+`data/raw/cross_border_real.parquet`.
+
+**Phase 3 — edge-level spread prediction (the relational payoff).** Targets the
+cross-border price spread ``spot_a − spot_b`` directly — irreducibly relational
+(undefined for one node; the FTR-priced object). Ladder (`forecast/edge.py`,
+skill vs persistence, OOS, 38 borders): `edge_persistence` 0; `edge_ridge`
+(ridge on both endpoints' drivers + current spread, no graph) **0.192**;
+`edge_gat` (GAT node embeddings → edge MLP head) **0.248 (5 seeds)**.
+**edge_gat beats edge_ridge by +0.056 skill, 5/5 seeds (~29% relative).** Since
+the ridge already sees both endpoints, the gain is pure whole-network context
+(message passing). Validated by the synthetic negative control: on independent
+zones the edge GAT is *worse* than the ridge (−0.32), so the real gain is genuine
+structure, not leakage. **This is the project's strongest relational result — the
+GNN's value concentrates on the genuinely relational target**, while node-level
+price skill barely needed the graph and congestion-as-edge-feature was null.
+
+**Limitations / next.** Single 6-month window, untuned HPs, one CPU run per seed.
+Robust results: node graph lift +0.131; attention's ranking edge (5/5);
+**edge-level message passing +0.056 over both-endpoint ridge (5/5)**. Open: HP
+grid + seed ensemble + walk-forward; Huber loss; a flow-based-coupling congestion
+signal for CWE; longer/multi-window. See `docs/energy_forecasting.md`.
 
 ## Next experiments (priority order)
 

@@ -1,0 +1,74 @@
+\documentclass[11pt,a4paper,oneside,numbers=noenddot,bibliography=totoc]{scrreprt}
+\pdfminorversion=7 % the Graphviz-generated figure PDFs are version 1.7
+
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[english]{babel}
+\usepackage[a4paper,top=2.3cm,bottom=2.3cm,left=2.4cm,right=2.4cm]{geometry}
+\usepackage{microtype}
+\usepackage{csquotes}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{siunitx}
+\usepackage{graphicx}
+\graphicspath{{figures/}}
+\usepackage{amsmath}
+\usepackage[style=ieee,backend=biber,urldate=iso,seconds=true]{biblatex}
+\usepackage[hidelinks]{hyperref}
+\usepackage[capitalise,noabbrev]{cleveref}
+\usepackage{etoolbox}
+
+% Chapters flow continuously instead of each starting a new page, but keep a
+% clear gap before every chapter title. KOMA issues the chapter page break in
+% \scr@startchapter; gate it behind \if@chapflow so front/back matter (title,
+% declaration, abstract, bibliography, appendix) still break, while body
+% chapters flow. \if@chapflow is toggled on/off in the document body.
+\newif\ifchapflow \chapflowfalse
+\makeatletter
+\patchcmd{\scr@startchapter}
+  {\if@openright\cleardoublepage\else\clearpage\fi}
+  {\ifchapflow\else\if@openright\cleardoublepage\else\clearpage\fi\fi}
+  {}{\typeout{PATCHFAIL: scr@startchapter chapter-break gate}}
+\makeatother
+\RedeclareSectionCommand[beforeskip=-\baselineskip,afterskip=.7\baselineskip]{chapter}
+\renewcommand*{\chapterheadstartvskip}{\vspace{3\baselineskip}}
+
+\addbibresource{refs.bib}
+
+\sisetup{
+  round-mode = places,
+  round-precision = 3,
+  table-format = 1.3,
+}
+
+\title{Relational Alpha Factors with Graph Attention Networks:\\
+A Dual-Track Study on US Equities and European Power Markets}
+\author{Wentao Ma}
+\date{July 8, 2026}
+
+\begin{document}
+
+\input{frontmatter/titlepage}
+\input{frontmatter/declaration}
+\input{frontmatter/abstract}
+
+\tableofcontents
+\clearpage
+\chapflowtrue
+
+\input{sections/01_introduction}
+\input{sections/02_background}
+\input{sections/03_platform}
+\input{sections/04_methodology}
+\input{sections/05_equity}
+\input{sections/06_energy}
+\input{sections/07_discussion}
+\input{sections/08_conclusion}
+
+\chapflowfalse
+\printbibliography
+
+\appendix
+\input{sections/appendix_reproducibility}
+
+\end{document}

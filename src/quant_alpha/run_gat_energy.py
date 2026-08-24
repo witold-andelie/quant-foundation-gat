@@ -199,6 +199,7 @@ def fetch_energy_raw(
     source: str = "synthetic",
     markets: list[str] | None = None,
     universe_path: str | None = None,
+    include_generation: bool = True,
 ) -> pd.DataFrame:
     """Build a power-market panel from the synthetic generator or live ENTSO-E.
 
@@ -236,6 +237,7 @@ def fetch_energy_raw(
             markets=zones, domains=domains,
             start=cfg.start_date, end=cfg.end_date or cfg.start_date,
             bar_interval=cfg.bar_interval, client=client,
+            include_generation=include_generation,
         )
         got = sorted(raw["market"].unique())
         print(f"ENTSO-E: {len(got)}/{len(zones)} zones returned data: {got}", flush=True)

@@ -4,14 +4,12 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from common import load_table, pick, render_track_selector
+from common import pick, render_track_selector
 
 st.title("🔬 Factor Research")
 track, is_energy, db, tm = render_track_selector(key="factor_track")
@@ -105,9 +103,9 @@ if not corr_df.empty and "alpha_left" in corr_df.columns:
     st.plotly_chart(fig2, use_container_width=True)
     st.caption("Values near ±1 indicate redundant factors. Target: |corr| < 0.7 for uniqueness gate.")
 elif not features.empty:
-    alpha_cols = [c for c in features.columns if c.startswith("alpha_")]
+    alpha_cols = [c for c in features.columns if c.startswith("alpha_") and not c.endswith("_rank") and c != "alpha_composite"]
     if len(alpha_cols) >= 2:
-        st.subheader("Alpha Pairwise Correlation Heatmap (computed from features)")
+        st.subheader("Alpha Pairwise Correlation Heatmap (computed from base features)")
         corr_mat = features[alpha_cols].corr(method="spearman")
         fig2 = px.imshow(
             corr_mat,

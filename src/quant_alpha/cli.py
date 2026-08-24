@@ -142,6 +142,101 @@ def gat_equity_command(
     typer.echo(f"A/B anchor  : {out['ab_report']}")
 
 
+def _fetch_energy_raw(cfg, root: Path, source: str):
+    """Load a power-market frame for the (torch-free) forecast harness.
+
+    Mirrors run_gat_energy.fetch_energy_raw but without importing the GAT runner,
+    so `energy-forecast` stays torch-free. ENTSO-E pulls the enriched frame
+    (generation mix + actual load) via include_generation=True."""
+    from quant_alpha.config import load_yaml
+    from quant_alpha.graph.edges_energy import EUROPEAN_BIDDING_ZONES
+
+    if source == "synthetic":
+        from quant_alpha.ingestion.energy import generate_synthetic_power_market
+
+        return generate_synthetic_power_market(
+            list(EUROPEAN_BIDDING_ZONES),
+            cfg.start_date,
+            cfg.end_date or cfg.start_date,
+            freq=cfg.bar_interval,
+        )
+    if source == "entsoe":
+        from quant_alpha.ingestion.entsoe import EntsoeClient, fetch_entsoe_power_market
+
+        universe = load_yaml(root / "configs" / "energy_universe_gnn.yaml")
+        domains = {str(k): str(v) for k, v in universe.get("entsoe_domains", {}).items()}
+        zones = list(universe.get("markets", list(domains.keys())))
+        client = EntsoeClient.from_env(
+            token_env=cfg.entsoe.token_env,
+            base_url=cfg.entsoe.base_url,
+            timeout_seconds=cfg.entsoe.timeout_seconds,
+        )
+        raw = fetch_entsoe_power_market(
+            markets=zones,
+            domains=domains,
+            start=cfg.start_date,
+            end=cfg.end_date or cfg.start_date,
+            bar_interval=cfg.bar_interval,
+            client=client,
+            include_generation=True,
+        )
+        got = sorted(raw["market"].unique())
+        typer.echo(f"ENTSO-E: {len(got)}/{len(zones)} zones returned data: {got}")
+        return raw
+    raise typer.BadParameter("source must be 'synthetic' or 'entsoe'")
+
+
+@app.command("energy-forecast")
+def energy_forecast_command(
+    config: Path = typer.Option(
+        Path("configs/second_foundation_project.yaml"), help="Energy project config YAML."
+    ),
+    root: Path = typer.Option(Path("."), help="Project root."),
+    source: str = typer.Option("synthetic", help="Energy data source: synthetic or entsoe."),
+    k: int = typer.Option(24, help="Forecast horizon in snapshots (hours)."),
+    train_ratio: float = typer.Option(0.7, help="Fraction of the timeline used for training."),
+    raw_path: str | None = typer.Option(
+        None,
+        help="Parquet cache for the raw power-market frame. Read if it exists, "
+        "else fetched (once) and written here — so a slow ENTSO-E pull is reused.",
+    ),
+    persist: bool = typer.Option(False, help="Write the skill report to DuckDB."),
+) -> None:
+    """Phase 0 energy price-forecast skill ladder (persistence / seasonal /
+    no-graph / uniform-graph). Torch-free; measures whether the interconnector
+    graph improves forecast skill. The GAT rung lands in Phase 2."""
+    import pandas as pd
+
+    from quant_alpha.config import load_project_config
+    from quant_alpha.forecast import evaluate_energy_forecast
+
+    cfg = load_project_config(config, root=root.resolve())
+    cache = Path(raw_path) if raw_path else None
+    if cache and cache.exists():
+        typer.echo(f"Loading cached raw frame from {cache}")
+        raw = pd.read_parquet(cache)
+    else:
+        raw = _fetch_energy_raw(cfg, root.resolve(), source)
+        if cache:
+            cache.parent.mkdir(parents=True, exist_ok=True)
+            raw.to_parquet(cache, index=False)
+            typer.echo(f"Cached raw frame ({len(raw)} rows) to {cache}")
+    out = evaluate_energy_forecast(raw, k=k, train_ratio=train_ratio)
+
+    typer.echo(f"Energy forecast skill ladder (OOS, k={k}h, source={source}):")
+    typer.echo(out["report"].to_string(index=False))
+    typer.echo(
+        f"\nGraph lift (uniform-graph - no-graph skill): "
+        f"{out['graph_lift_uniform_vs_nograph']:+.4f}"
+    )
+    typer.echo(f"Features: {out['feature_cols']}")
+    if persist:
+        from quant_alpha.storage.duckdb import write_table
+
+        write_table(cfg.duckdb_path, "energy_forecast_skill", out["report"])
+        typer.echo(f"Persisted energy_forecast_skill to {cfg.duckdb_path}")
+
+
 @app.command("bruin-lineage")
 def bruin_lineage_command(
     bruin_root: Path = typer.Option(Path("bruin"), help="Path to bruin/ directory."),

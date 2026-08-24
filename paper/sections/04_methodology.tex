@@ -1,0 +1,242 @@
+\chapter{Methodology}
+\label{ch:methodology}
+
+Both research tracks run through one fixed measurement apparatus. This
+chapter defines it once: the data representation
+(\cref{sec:panel}), the supervision label (\cref{sec:label}), the split
+protocol and its leakage controls (\cref{sec:splits}), the model and
+training objective (\cref{sec:training}), the four research gates
+(\cref{sec:gates}), and the attention A/B that carries the core thesis
+test (\cref{sec:anchors}). \Cref{sec:skill} adds the forecast-skill
+apparatus used after the energy track was reframed from alpha research to
+forecasting. Every experiment in \cref{ch:equity,ch:energy} reports
+against this apparatus without modification; where a design choice was
+made in response to an observed failure, the chapter that reports the
+failure also documents the change.
+
+\section{The canonical panel}
+\label{sec:panel}
+
+All data enters the pipeline as a panel indexed by \emph{(time, entity)}:
+\emph{(date, symbol)} on the equity track, \emph{(timestamp, bidding
+zone)} on the energy track. The entities are the nodes a graph later
+connects. A \emph{snapshot} is the cross-section of one timestamp --- the
+unit that graph propagation operates on; no operation ever sees the panel
+as a whole time series.
+
+Node features are deliberately not raw market data. Each track already
+maintains a registry of island factors --- alphas that score a node from
+its own history alone, ten on the equity track and eight on the energy
+track. Their cross-sectionally ranked values form the feature matrix.
+This choice pins the research question: any value the graph model adds
+must come from relating nodes, because the per-node information is
+the same information the island baselines consume. Concretely, the
+equity ten are functions of each stock's own prices and volumes alone
+(reversal, medium-horizon momentum, intraday range position, volume
+shocks, overnight-gap behaviour); nothing exogenous enters that track.
+The energy eight mix each zone's price dynamics with its published
+fundamentals, such as residual load, wind and solar forecast terms,
+demand surprise, and the gas spark spread. Which signals enter matters
+less than the rule that they enter everywhere: island baselines,
+anchors, and GAT consume this identical matrix, so a relational model
+can hold no information advantage over the baselines it is measured
+against. Missing values are
+filled with the per-snapshot median, which in rank space is the
+no-information position; a node with no data is indistinguishable from a
+node ranked exactly in the middle.
+
+\section{Supervision label}
+\label{sec:label}
+
+The label is the forward return over a fixed horizon $k$, standardised
+per snapshot so that the model learns to rank the cross-section rather
+than to predict absolute magnitudes. On the equity track it is
+$r_{t,k} = p_{t+k}/p_t - 1$ with $k$ = 5 trading days, z-scored within
+each snapshot. On the energy track it is
+$r_{t,k} = (p_{t+k}-p_t)\,/\max(|p_t|, 20)$ with $k$ = 24 hours, clipped
+to $\pm 0.8$ and z-scored; the denominator floor is unavoidable because
+European power prices cross zero and turn negative, so a plain relative
+return divides by numbers arbitrarily close to zero.
+
+The label is supervision only. It is computed from prices at $t+k$ and
+never appears as a feature; the last $k$ snapshots of each entity have no
+label and are excluded from training. The energy clip, introduced for
+label stability, later turned out to have a second life as an
+\emph{evaluation} artifact --- \cref{ch:energy} reports how clipping the
+evaluation return concealed tail losses, and why the shipped evaluation
+is unclipped.
+
+\section{Split protocol and leakage controls}
+\label{sec:splits}
+
+Leakage was treated as the primary methodological risk from the start,
+and the controls are structural rather than procedural: they are asserted
+in code, not remembered by the experimenter.
+
+A single in-sample/out-of-sample boundary is placed at 70\% of the
+timestamps. That one date is computed once and passed explicitly to every
+consumer: graph construction builds edges only from data strictly before
+it, model selection sees only data inside it, and the gate evaluation
+scores only data after it. The alternative --- letting each component
+derive its own boundary --- failed quietly during development: three
+components each assumed 70\% and happened to agree, so changing any one
+ratio would have leaked without any test failing. Centralising the date
+turned that silent coupling into an explicit contract.
+
+Within the in-sample region the layout is
+\[
+\texttt{train} \;\big|\; \texttt{embargo}(k) \;\big|\; \texttt{valid}
+\;\big|\; \texttt{embargo}(k) \;\big|\; \texttt{OOS},
+\]
+with the validation block embargoed on both sides. The leading
+embargo is standard practice: the last training labels reach $k$ steps
+forward and must not overlap the first validation features
+\cite{lopezdeprado2018afml}. The trailing embargo is easy to omit and
+was nearly omitted here: validation labels also reach $k$ steps forward,
+so without it, best-epoch selection would be scored partly on returns
+that belong to the out-of-sample window. A dedicated assertion
+(\texttt{is\_constrained\_split}) rejects any split violating this
+layout.
+
+Two automated controls argue that the pipeline as a whole produces no
+false positives. A negative control shuffles the labels and asserts that
+validation IC collapses to zero; a positive control plants a synthetic
+signal and asserts that training recovers it. Both run in the test suite
+on every change to the leakage-critical code, which is deliberately pure
+pandas --- testable without a GPU or the torch dependency.
+
+\section{Model and training objective}
+\label{sec:training}
+
+The relational model is a stacked graph attention network
+\cite{velickovic2018gat} with two layers, implemented on PyTorch
+Geometric \cite{fey2019pyg}. (The later forecasting work of
+\cref{ch:energy} uses the GATv2 variant \cite{brody2022gatv2}; the alpha
+track predates it in the codebase and keeps the original operator.) The
+model maps one snapshot's node features and topology to one score per
+node; scores across snapshots form the relational composite factor.
+
+Training minimises an IC loss --- the negative Pearson correlation
+between predictions and labels within each snapshot --- a differentiable
+stand-in for the evaluation metric, the per-snapshot rank-IC (the
+Spearman correlation of predictions and labels, reported throughout as
+the OOS IC). An MSE variant is retained for comparison;
+\cref{ch:equity} reports the probe that motivated the switch, in which
+the IC loss recovered a planted signal far better than MSE. Model
+selection is by best validation IC with epoch checkpointing: the weights
+deployed are those of the best validation epoch, not the last one. This
+detail matters in practice --- on the first real-data run the validation
+IC peaked mid-training and then decayed to roughly half its peak, so
+returning the final epoch would have discarded most of the signal.
+
+Two deployment modes are evaluated throughout. \emph{Single} fits once on
+the in-sample region and scores the entire out-of-sample window with
+frozen weights. \emph{Walk-forward} refits at every 63-snapshot boundary
+through the out-of-sample window, each refit using only data whose labels
+predate its boundary, with the same embargoed layout per fold. Every
+walk-forward score therefore comes from a model that would have been
+trainable at that date in deployment. All headline runs are CPU; a GPU
+benchmark found no speedup at this graph size (about 50 nodes).
+
+\section{The four research gates}
+\label{sec:gates}
+
+A relational composite is only interesting if it survives comparison
+against the island factors it was built from. Four gates, all scored on
+the out-of-sample slice, formalise that comparison
+(\cref{tab:gates}).
+
+\begin{table}[htbp]
+  \centering
+  \caption{The four research gates. The composite is compared against
+  the single island alphas (ten equity, eight energy), out-of-sample.}
+  \label{tab:gates}
+  \begin{tabular}{lll}
+    \toprule
+    Gate & Definition & Pass threshold \\
+    \midrule
+    Value-added & composite OOS Sharpe vs.\ best single & composite $>$ max \\
+    Consistency & IS/OOS IC same sign, magnitude retention & score $\geq 0.5$ \\
+    Uniqueness  & max $|$Spearman$|$ vs.\ each single & $< 0.7$ \\
+    Robustness  & blend: OOS coverage, IC IR, drawdown & score $\geq 0.5$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+The value-added gate is deliberately the strictest formulation ---
+beating the maximum of $N$ competitors is a higher bar than beating their
+mean, and a composite can be genuinely useful while failing it. Results
+therefore also report the beat-rate against the full set of singles, and
+\cref{ch:equity} discusses the one gate this project never closed.
+
+\section{The attention A/B: two no-learning anchors}
+\label{sec:anchors}
+
+A GAT that beats the island factors has not yet demonstrated that
+\emph{learned attention} was the ingredient that mattered; the
+improvement could come from neighbour averaging alone. Every run
+therefore carries two anchors, computed from the same inputs and, where
+applicable, the same topology: the \emph{island anchor}, an equal-weight
+composite of the input alphas with no propagation at all; and the
+\emph{uniform anchor}, the same composite averaged uniformly over the
+GAT's own topology --- relational, but with nothing learned.
+\Cref{fig:iso-anchors} draws the arrangement: three factor
+constructions, one input matrix, one harness.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.88\textwidth]{isolation_anchors.pdf}
+  \caption{The attention A/B. All three factor constructions read the
+  same ranked island-factor matrix and are scored by the same
+  evaluation harness; the two dashed comparisons are the quantities
+  this report is about --- what the graph adds (island anchor versus
+  uniform anchor) and what learned attention adds (uniform anchor
+  versus GAT, the attention value-add).}
+  \label{fig:iso-anchors}
+\end{figure}
+
+The difference between the GAT's out-of-sample Sharpe and the uniform
+anchor's is the \emph{attention value-add}, the quantity the core thesis
+stands on. It isolates the contribution of learned attention while
+holding the information set and the graph fixed. Where the four gates ask
+``is the composite a good factor?'', the A/B asks the sharper question
+``did learning the edge weights matter?'' --- and the two questions turn
+out to have different answers in \cref{ch:equity}.
+
+\section{Forecast-skill apparatus (energy reframe)}
+\label{sec:skill}
+
+After the energy alpha attempt concluded negatively
+(\cref{ch:energy}), the energy question was reframed from ``is there a
+tradeable cross-sectional signal?'' to ``does the physical
+interconnector graph improve forecast accuracy?''. The measurement
+apparatus changes accordingly. The metric is a skill score against
+persistence,
+\[
+\text{skill} = 1 - \mathrm{MSE}/\mathrm{MSE}_{\text{persistence}},
+\]
+scored out-of-sample at $k$ = 24 hours, alongside MAE and the
+cross-sectional rank-IC. Persistence (tomorrow equals today) scores zero
+by construction; a model must beat carrying yesterday forward to show any
+skill at all.
+
+Candidates form a ladder in which each rung isolates one ingredient: a
+seasonal-naive rung isolates the diurnal cycle; a per-node ridge
+regression on physical drivers (load, wind and solar forecasts, fuel
+price) isolates what a zone's own fundamentals add; a ridge with
+uniform neighbour averaging isolates what the interconnector graph adds
+without learning; and the GAT rungs isolate what learned attention adds
+on top. The anchors of \cref{sec:anchors} reappear here in forecasting
+form --- the value claim is the margin over the no-graph rung \emph{and}
+over the uniform-graph rung, not the absolute skill.
+
+Feature timing follows the day-ahead market's information structure:
+load, wind, and solar forecasts for hour $t+k$ are published
+before $t$ and may legitimately be used as features for $t+k$; realised
+quantities (actual load, generation mix) are known only up to $t$ and
+enter as point-in-time anchors. The synthetic negative control carries
+over: synthetic zones are generated independently, so the test suite
+asserts that the graph rung does not beat the no-graph rung on
+synthetic data. Any measured graph lift can then only come from real
+cross-zonal coupling.
+

@@ -10,7 +10,6 @@ Covers the DataTalksClub Zoomcamp Workshop (Data Ingestion) knowledge points:
 """
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Iterator
 
@@ -72,15 +71,14 @@ def build_energy_pipeline(
     dataset_name: str = "dlt_energy_raw",
 ) -> dlt.Pipeline:
     """Create and return a configured dlt pipeline for energy data."""
-    os.environ["DESTINATION__DUCKDB__CREDENTIALS"] = str(duckdb_path)
-    try:
-        return dlt.pipeline(
-            pipeline_name="second_foundation_energy",
-            destination="duckdb",
-            dataset_name=dataset_name,
-        )
-    finally:
-        os.environ.pop("DESTINATION__DUCKDB__CREDENTIALS", None)
+    # Credentials must be bound to the destination object: dlt >=1.x resolves
+    # config lazily at run() time, so a temporary env var set only during
+    # pipeline creation is silently ignored and data lands in ./<name>.duckdb.
+    return dlt.pipeline(
+        pipeline_name="second_foundation_energy",
+        destination=dlt.destinations.duckdb(str(duckdb_path)),
+        dataset_name=dataset_name,
+    )
 
 
 def run_dlt_energy_pipeline(

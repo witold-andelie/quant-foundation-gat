@@ -164,8 +164,8 @@ Remaining, in order:
 3. **Platform integration (M5)** — ~~composite into dbt marts~~ **DONE**:
    `persist_gat_outputs` writes 4 tables to DuckDB; dbt models `stg_gat_panel`
    + `fct_gat_vs_baseline` (tiered A/B) + `fct_gat_scorecard` (one-row gates +
-   attention A/B), built and tested end-to-end (`dbt run`/`test` PASS via the
-   `D:\duckdb` venv). Remaining: Streamlit "GAT vs Baseline" page (E6 matrix,
+   attention A/B), built and tested end-to-end (`dbt run`/`test` PASS,
+   dbt in the system Python). Remaining: Streamlit "GAT vs Baseline" page (E6 matrix,
    E7/E9 seed distributions, E10 attention figures).
 4. **Paper assembly** — the evidence map (C1-C14) and narrative order are
    ready in the experiment log; limitations list in E5 + static-graph
