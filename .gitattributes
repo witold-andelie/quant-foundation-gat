@@ -1,0 +1,8 @@
+# GitHub Linguist language overrides
+*.tex linguist-vendored
+*.bib linguist-vendored
+*.cls linguist-vendored
+*.sty linguist-vendored
+docs/* linguist-documentation
+dbt_*/*.sql linguist-detectable=true
+*.py linguist-detectable=true
