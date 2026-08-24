@@ -109,7 +109,7 @@ if sim_triggered and not live.empty:
         from quant_alpha.streaming.risingwave.simulator import build_realtime_alpha_panel, get_scarcity_alerts
         with st.spinner("Running RisingWave simulator…"):
             scores = build_realtime_alpha_panel(live)
-            alerts = get_scarcity_alerts(live)
+            alerts = get_scarcity_alerts(scores)
         st.session_state["rw_sim_done"] = True
         st.session_state["rw_scores"] = scores
         st.session_state["rw_alerts"] = alerts

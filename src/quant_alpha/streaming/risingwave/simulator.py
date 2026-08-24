@@ -16,18 +16,25 @@ from quant_alpha.features.energy_alpha import add_energy_alpha_features
 
 
 def build_realtime_alpha_panel(
-    markets: list[str],
+    markets: list[str] | pd.DataFrame,
     hours: int = 48,
     db_path: str = ":memory:",
 ) -> pd.DataFrame:
     """
     Simulate mv_realtime_alpha_scores locally using DuckDB window functions.
     Returns a wide DataFrame equivalent to the RisingWave materialized view.
+    Accepts either a list of market symbols (e.g. ['DE_LU', 'FR']) or an existing
+    raw signal DataFrame.
     """
-    end = pd.Timestamp.utcnow().floor("h")
-    start = end - pd.Timedelta(hours=hours)
-    raw = generate_synthetic_power_market(markets, start.isoformat(), end.isoformat(), freq="h")
-    features = add_energy_alpha_features(raw)
+    if isinstance(markets, pd.DataFrame):
+        features = markets.copy()
+        if "residual_load" not in features.columns:
+            features = add_energy_alpha_features(features)
+    else:
+        end = pd.Timestamp.utcnow().floor("h")
+        start = end - pd.Timedelta(hours=hours)
+        raw = generate_synthetic_power_market(markets, start.isoformat(), end.isoformat(), freq="h")
+        features = add_energy_alpha_features(raw)
 
     con = duckdb.connect(db_path)
     con.register("power_market_signals", features)
@@ -82,10 +89,13 @@ def get_scarcity_alerts(
     threshold: float = 0.8,
 ) -> pd.DataFrame:
     """Return rows where residual load rank exceeds the threshold (scarcity events)."""
+    if panel.empty or "alpha_residual_load_rank" not in panel.columns:
+        return pd.DataFrame(columns=["timestamp", "market", "spot_price", "scarcity_level"])
     alerts = panel[panel["alpha_residual_load_rank"] > threshold].copy()
     alerts["scarcity_level"] = "MEDIUM"
-    alerts.loc[
-        (alerts["alpha_residual_load_rank"] > 0.9) & (alerts["alpha_momentum_6h"] > 0.7),
-        "scarcity_level",
-    ] = "HIGH"
+    if "alpha_momentum_6h" in alerts.columns:
+        alerts.loc[
+            (alerts["alpha_residual_load_rank"] > 0.9) & (alerts["alpha_momentum_6h"] > 0.7),
+            "scarcity_level",
+        ] = "HIGH"
     return alerts.sort_values("timestamp", ascending=False).reset_index(drop=True)
