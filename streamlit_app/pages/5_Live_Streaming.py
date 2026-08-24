@@ -24,25 +24,53 @@ with col_r:
 db = ENERGY_DB
 tm = ENERGY_TABLES
 
+# ── Live signal buffer ────────────────────────────────────────────────────────
+# Load from session state or DuckDB table
+live = st.session_state.get("live_energy_signals")
+if live is None or (isinstance(live, pd.DataFrame) and live.empty):
+    live = load_table(db, "live_energy_signals")
+
+# Auto-seed if empty or stale (>24 hours old) to always show today's live timestamp
+now_utc = pd.Timestamp.utcnow().tz_localize(None).floor("h")
+is_stale = False
+if not live.empty and "timestamp" in live.columns:
+    max_ts = pd.to_datetime(live["timestamp"]).dt.tz_localize(None).max()
+    if pd.notna(max_ts) and max_ts < now_utc - pd.Timedelta(hours=24):
+        is_stale = True
+
+if live.empty or is_stale:
+    from quant_alpha.streaming.demo_signals import generate_live_signals, seed_demo_signals
+    try:
+        seed_demo_signals(db, n_hours=48)
+    except Exception:
+        pass
+    live = generate_live_signals(n_hours=48)
+    st.session_state["live_energy_signals"] = live
+
 # ── Control bar ───────────────────────────────────────────────────────────────
 col_btn, col_rw, col_info = st.columns([1, 1, 3])
 with col_btn:
-    if st.button("Seed 48 h demo signals", type="primary"):
-        from quant_alpha.streaming.demo_signals import seed_demo_signals
-        n = seed_demo_signals(db, n_hours=48)
-        st.success(f"Wrote {n} rows to live_energy_signals")
+    if st.button("🌱 Seed 48 h demo signals", type="primary"):
+        from quant_alpha.streaming.demo_signals import generate_live_signals, seed_demo_signals
+        try:
+            seed_demo_signals(db, n_hours=48)
+        except Exception:
+            pass
+        live = generate_live_signals(n_hours=48)
+        st.session_state["live_energy_signals"] = live
+        st.session_state["rw_sim_done"] = False
+        st.session_state.pop("rw_scores", None)
+        st.session_state.pop("rw_alerts", None)
         st.cache_data.clear()
+        st.success(f"Generated {len(live)} fresh streaming signals up to {live['timestamp'].max()[:16] if 'timestamp' in live else 'now'}")
         st.rerun()
 with col_rw:
-    run_sim = st.button("Run RisingWave simulator", help="Compute streaming alpha scores offline via DuckDB")
+    run_sim = st.button("⚡ Run RisingWave simulator", help="Compute streaming alpha scores on current live stream")
 with col_info:
     st.caption(
         "Production: `docker compose up -d redpanda risingwave` → signals flow automatically. "
-        "Demo: seed synthetic data then use the simulator for offline alpha scoring."
+        "Demo: click to simulate real-time incremental window alpha scores up to current hour."
     )
-
-# ── Live signal buffer ────────────────────────────────────────────────────────
-live = load_table(db, "live_energy_signals")
 
 if not live.empty:
     live["timestamp"] = pd.to_datetime(live["timestamp"])
@@ -102,12 +130,22 @@ st.divider()
 # ── RisingWave simulator ──────────────────────────────────────────────────────
 st.subheader("RisingWave Alpha Scores (Simulator / Offline)")
 
+if run_sim:
+    from quant_alpha.streaming.demo_signals import generate_live_signals, seed_demo_signals
+    try:
+        seed_demo_signals(db, n_hours=48)
+    except Exception:
+        pass
+    live = generate_live_signals(n_hours=48)
+    st.session_state["live_energy_signals"] = live
+    st.session_state["rw_sim_done"] = True
+
 sim_triggered = run_sim or st.session_state.get("rw_sim_done", False)
 
 if sim_triggered and not live.empty:
     try:
         from quant_alpha.streaming.risingwave.simulator import build_realtime_alpha_panel, get_scarcity_alerts
-        with st.spinner("Running RisingWave simulator…"):
+        with st.spinner("Running RisingWave simulator on live stream…"):
             scores = build_realtime_alpha_panel(live)
             alerts = get_scarcity_alerts(scores)
         st.session_state["rw_sim_done"] = True
