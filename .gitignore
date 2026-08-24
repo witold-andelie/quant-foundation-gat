@@ -42,10 +42,11 @@ node_modules/
 .idea/
 .vscode/
 
-# local agent workspaces
+# local agent workspaces & paper drafts (local only)
 .claude/
 .codegraph/
 .scratch/
+paper/
 
 # transient experiment weights (canonical gat_equity.pt stays tracked)
 data/warehouse/gat_seed_*.pt
