@@ -29,17 +29,17 @@ performance = st.Page(
     icon=":material/monitoring:",
 )
 factor_research = st.Page(
-    "pages/5_Factor_Research.py",
+    "pages/2_Factor_Research.py",
     title="Factor Research",
     icon=":material/science:",
 )
 alpha_decay = st.Page(
-    "pages/2_Alpha_Decay.py",
+    "pages/3_Alpha_Decay.py",
     title="Alpha Decay",
     icon=":material/timeline:",
 )
 market_data = st.Page(
-    "pages/3_Market_Data.py",
+    "pages/4_Market_Data.py",
     title="Market Data",
     icon=":material/table_chart:",
 )
@@ -49,12 +49,12 @@ overview = st.Page(
     icon=":material/account_tree:",
 )
 data_pipeline = st.Page(
-    "pages/4_Data_Pipeline.py",
+    "pages/6_Data_Pipeline.py",
     title="Data Pipeline",
     icon=":material/lan:",
 )
 live_streaming = st.Page(
-    "pages/6_Live_Streaming.py",
+    "pages/5_Live_Streaming.py",
     title="Live Streaming",
     icon=":material/stream:",
 )
