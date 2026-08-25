@@ -1,182 +1,236 @@
-"""Home page — clickable navigation cards. Loaded via st.navigation in app.py."""
-from __future__ import annotations
+"""Story-first landing page for the Quant Alpha Foundation dashboard."""
 
-import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 
-from common import (
-    ENERGY_DB, EQUITY_DB,
-    ENERGY_TABLES, EQUITY_TABLES,
-    list_tables, pick,
-)
 
-st.title("Quant Alpha Foundation")
+st.title("Can connected markets improve prediction?")
+st.markdown(
+    """
+Traditional models score each stock or power market in isolation. This project
+tests whether information from connected neighbours adds predictive value,
+then separates the value of the **graph itself** from the value of
+**learned attention**.
+"""
+)
 st.caption(
-    "Second Foundation Energy · US Equities Demo · "
-    "WorldQuant-style alpha research with full DataTalksClub Zoomcamp stack"
+    "A controlled graph-ML study across US equities and European electricity markets."
 )
 
-energy_ok = ENERGY_DB.exists()
-equity_ok = EQUITY_DB.exists()
+cta_left, cta_right = st.columns(2)
+with cta_left:
+    if st.button("See the evidence", type="primary", width="stretch"):
+        st.switch_page("pages/8_GAT_Forecasting.py")
+with cta_right:
+    if st.button("Open performance details", width="stretch"):
+        st.switch_page("pages/1_Performance.py")
 
-if not energy_ok and not equity_ok:
-    st.warning(
-        "No data found. Run `quant-alpha energy-run` or `quant-alpha run --offline` "
-        "from the project root to generate the warehouse data."
-    )
-    st.stop()
 
-# ── Track selector (persists across pages) ───────────────────────────────────
-default_track = st.session_state.get("track", "Second Foundation Energy")
-track = st.radio(
-    "Active research track",
-    ["Second Foundation Energy", "US Equities Demo"],
-    index=0 if default_track == "Second Foundation Energy" else 1,
-    horizontal=True,
-)
-st.session_state["track"] = track
-is_energy = track == "Second Foundation Energy"
-db = ENERGY_DB if is_energy else EQUITY_DB
-tables_map = ENERGY_TABLES if is_energy else EQUITY_TABLES
-
-if not db.exists():
-    st.info(f"Run the {'energy' if is_energy else 'equity'} pipeline to generate data.")
-    st.stop()
-
-# ── Top metrics summary ──────────────────────────────────────────────────────
-metrics = pick(db, *tables_map["metrics"])
-diagnostics = pick(db, *tables_map["diagnostics"])
-registry = pick(db, *tables_map["registry"])
-
-def _fmt(df: pd.DataFrame, col: str, fmt: str) -> str:
-    if df.empty or col not in df.columns:
-        return "—"
-    try:
-        return fmt.format(float(df[col].iloc[0]))
-    except Exception:
-        return "—"
-
-c1, c2, c3, c4, c5 = st.columns(5)
-with c1:
-    st.metric("Total Return", _fmt(metrics, "total_return", "{:.1%}"))
-with c2:
-    st.metric("Ann. Sharpe", _fmt(metrics, "sharpe", "{:.2f}"))
-with c3:
-    st.metric("Sortino", _fmt(metrics, "sortino", "{:.2f}"))
-with c4:
-    st.metric("Max Drawdown", _fmt(metrics, "max_drawdown", "{:.1%}"))
-with c5:
-    n_alphas = len(registry) if not registry.empty else "—"
-    st.metric("Alpha factors", n_alphas)
-
-if is_energy:
-    st.warning(
-        "⚠️ **Baseline Notice (Energy Track):** The multi-alpha metrics above represent the **Naive Unpruned Long/Short Baseline** (E13b). Under honest unclipped returns, cross-sectional power trading yields negative PnL due to scarcity spikes. "
-        "This motivated our scientific reframe to **Power Price & Spread Forecasting with GNNs** on **[Page 8 (GAT & Forecasting)](GAT_Forecasting)** (Skill: **+0.131** node / **+0.056** edge spread)."
-    )
-else:
-    st.info(
-        "ℹ️ **Baseline Notice (Equity Track):** The metrics above represent the **Naive Multi-Alpha Baseline** (unpruned equal-weighted average of 10 raw factors without graph relational learning, resulting in Sharpe -1.39 / Return -44.1%). "
-        "When enhanced with **GAT Relational Graph Attention** on **[Page 8 (GAT & Forecasting)](GAT_Forecasting)**, the strategy achieves **OOS Sharpe +0.35 ~ +1.40** and reduces Max Drawdown from **-60.1% to -4.9%**."
-    )
-
-st.divider()
-st.subheader("Research Modules")
-st.caption("Click any card to dive into that module")
-
-# ── Clickable feature cards ──────────────────────────────────────────────────
-CARDS = [
-    {"icon": "📈", "title": "Performance",         "page": "pages/1_Performance.py",
-     "tagline": "P&L curve · drawdown · rolling Sharpe · attribution"},
-    {"icon": "🔬", "title": "Factor Research",     "page": "pages/2_Factor_Research.py",
-     "tagline": "4-gate scorecard · IS/OOS scatter · correlation heatmap"},
-    {"icon": "📉", "title": "Alpha Decay",         "page": "pages/3_Alpha_Decay.py",
-     "tagline": "IC decay · walk-forward stability · turnover vs Sharpe"},
-    {"icon": "⚡", "title": "Market Data",         "page": "pages/4_Market_Data.py",
-     "tagline": "Spot · residual load · imbalance · Spark features"},
-    {"icon": "🔴", "title": "Live Streaming",      "page": "pages/5_Live_Streaming.py",
-     "tagline": "Redpanda buffer · RisingWave simulator · scarcity alerts"},
-    {"icon": "🔧", "title": "Data Pipeline",       "page": "pages/6_Data_Pipeline.py",
-     "tagline": "Bruin lineage · table inventory · quality · null rates"},
-    {"icon": "📊", "title": "Cross-Track Overview", "page": "pages/7_Overview.py",
-     "tagline": "Energy + Equity side-by-side · 11-module health matrix"},
-    {"icon": "🕸️", "title": "GAT & Forecasting",   "page": "pages/8_GAT_Forecasting.py",
-     "tagline": "Relational factors · skill ladder · edge-level spread · E14 findings"},
-]
-
-def _render_card(card: dict):
-    with st.container(border=True):
-        st.markdown(
-            f"""
-            <div style="min-height: 100px;">
-              <h4 style="margin: 0 0 0.5rem 0; font-size: 1.1rem;">
-                {card['icon']} &nbsp;{card['title']}
-              </h4>
-              <p style="color: rgba(140,140,150,0.95); font-size: 0.85rem;
-                        margin: 0; line-height: 1.45;">
-                {card['tagline']}
-              </p>
-            </div>
-            """,
-            unsafe_allow_html=True,
+def _network_figure(nodes, edges, colour):
+    fig = go.Figure()
+    for source, target in edges:
+        x0, y0 = nodes[source]
+        x1, y1 = nodes[target]
+        fig.add_trace(
+            go.Scatter(
+                x=[x0, x1],
+                y=[y0, y1],
+                mode="lines",
+                line={"color": colour, "width": 3},
+                hoverinfo="skip",
+                showlegend=False,
+            )
         )
-        if st.button(
-            "Open  →",
-            key=f"btn_{card['title']}",
-            type="primary",
-            use_container_width=True,
-        ):
-            st.switch_page(card["page"])
+    fig.add_trace(
+        go.Scatter(
+            x=[xy[0] for xy in nodes.values()],
+            y=[xy[1] for xy in nodes.values()],
+            text=list(nodes),
+            mode="markers+text",
+            textposition="top center",
+            marker={
+                "size": 30,
+                "color": "#F8FAFC",
+                "line": {"color": colour, "width": 3},
+            },
+            hovertemplate="%{text}<extra></extra>",
+            showlegend=False,
+        )
+    )
+    fig.update_layout(
+        height=250,
+        margin={"l": 10, "r": 10, "t": 15, "b": 10},
+        xaxis={"visible": False},
+        yaxis={"visible": False},
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+    )
+    return fig
 
-# Row 1: 4 cards
-row1 = st.columns(4)
-for col, card in zip(row1, CARDS[:4]):
-    with col:
-        _render_card(card)
 
-# Row 2: 4 cards
-row2 = st.columns(4)
-for col, card in zip(row2, CARDS[4:]):
-    with col:
-        _render_card(card)
+st.markdown("### Two markets, two meanings of connection")
+equity_col, energy_col = st.columns(2)
+with equity_col:
+    with st.container(border=True):
+        st.markdown("**US equities**")
+        st.caption("Node = stock; edge = return correlation or sector relationship")
+        nodes = {
+            "AAPL": (0.0, 1.0),
+            "MSFT": (1.0, 1.0),
+            "GOOG": (0.0, 0.0),
+            "NVDA": (1.0, 0.0),
+        }
+        edges = [
+            ("AAPL", "MSFT"),
+            ("AAPL", "GOOG"),
+            ("MSFT", "NVDA"),
+            ("GOOG", "NVDA"),
+        ]
+        st.plotly_chart(
+            _network_figure(nodes, edges, "#2563EB"),
+            width="stretch",
+            config={"displayModeBar": False},
+        )
+with energy_col:
+    with st.container(border=True):
+        st.markdown("**European electricity**")
+        st.caption("Node = bidding zone; edge = physical cross-border interconnector")
+        nodes = {
+            "FR": (0.0, 0.5),
+            "BE": (0.8, 1.0),
+            "NL": (1.6, 1.0),
+            "DE_LU": (1.2, 0.35),
+            "AT": (2.0, 0.0),
+            "CZ": (2.4, 0.6),
+        }
+        edges = [
+            ("FR", "BE"),
+            ("FR", "DE_LU"),
+            ("BE", "NL"),
+            ("NL", "DE_LU"),
+            ("DE_LU", "AT"),
+            ("DE_LU", "CZ"),
+            ("AT", "CZ"),
+        ]
+        st.plotly_chart(
+            _network_figure(nodes, edges, "#059669"),
+            width="stretch",
+            config={"displayModeBar": False},
+        )
 
-# ── Quick Actions (separate horizontal section) ──────────────────────────────
-st.divider()
-st.subheader("Quick Actions")
-
-qa1, qa2, qa3 = st.columns(3)
-with qa1:
-    if st.button("🔄 Refresh all caches", use_container_width=True, key="qa_refresh"):
-        st.cache_data.clear()
-        st.rerun()
-with qa2:
-    if st.button("🌱 Seed live signals (48 h)", use_container_width=True, key="qa_seed"):
-        try:
-            from quant_alpha.streaming.demo_signals import seed_demo_signals
-            n = seed_demo_signals(ENERGY_DB, n_hours=48)
-            st.success(f"Wrote {n} synthetic rows to live_energy_signals")
-        except Exception as exc:
-            st.error(f"Failed: {exc}")
-with qa3:
-    if st.button("📋 Show all DB tables", use_container_width=True, key="qa_tables"):
-        st.session_state["show_tables"] = not st.session_state.get("show_tables", False)
-
-if st.session_state.get("show_tables", False):
-    st.divider()
-    st.subheader("All DuckDB Tables")
-    col_e, col_q = st.columns(2)
-    with col_e:
-        e_tables = list_tables(ENERGY_DB)
-        st.markdown(f"**Energy** ({len(e_tables)})")
-        st.code("\n".join(e_tables) if e_tables else "(none)", language=None)
-    with col_q:
-        q_tables = list_tables(EQUITY_DB)
-        st.markdown(f"**Equity** ({len(q_tables)})")
-        st.code("\n".join(q_tables) if q_tables else "(none)", language=None)
-
-st.divider()
+st.markdown("### The controlled comparison")
+ladder = st.columns(3)
+items = [
+    ("1", "No graph", "Use only the market's own features."),
+    ("2", "Uniform neighbours", "Add a simple average of connected neighbours."),
+    ("3", "Learned attention", "Let GAT learn different neighbour weights."),
+]
+for column, (step, title, body) in zip(ladder, items):
+    with column:
+        with st.container(border=True):
+            st.caption(f"STEP {step}")
+            st.markdown(f"**{title}**")
+            st.write(body)
 st.caption(
-    f"Active track: **{track}** · "
-    f"Backend: `{'BigQuery' if 'bigquery' in str(db) else 'DuckDB'}` · "
-    f"Path: `{db}`"
+    "This ladder asks two questions: does connectivity help, and does the more "
+    "flexible GAT model improve over the uniform-neighbour anchor?"
+)
+
+st.markdown("### Four conclusions to remember")
+
+
+def _finding_card(label, value, title, body):
+    with st.container(border=True):
+        st.caption(label)
+        st.markdown(f"## {value}")
+        st.markdown(f"**{title}**")
+        st.write(body)
+
+
+left, right = st.columns(2)
+with left:
+    _finding_card(
+        "EQUITY",
+        "30 / 30 seeds",
+        "GAT improved over the uniform anchor",
+        "Selected OOS Sharpe was 1.42 and 3 of 4 gates passed. The best single "
+        "factor still reached 2.88, so this is not an overall winner claim.",
+    )
+with right:
+    _finding_card(
+        "ENERGY PRICE",
+        "+0.131 skill",
+        "Physical graph structure helped",
+        "Uniform neighbours improved skill from 0.224 to 0.355 versus the "
+        "no-graph ridge baseline.",
+    )
+
+left, right = st.columns(2)
+with left:
+    _finding_card(
+        "ATTENTION",
+        "0.612 rank IC",
+        "Attention was not universally better",
+        "GAT improved ranking over uniform aggregation (0.612 vs 0.584), but "
+        "its MSE skill was slightly lower (0.347 vs 0.355).",
+    )
+with right:
+    _finding_card(
+        "CROSS-BORDER SPREAD",
+        "+0.056 skill",
+        "The strongest result was relational",
+        "Edge GAT improved skill from 0.192 to 0.248 over edge ridge and won "
+        "across 5 of 5 optimisation seeds.",
+    )
+
+st.caption(
+    "Seed counts measure optimisation stability under repeated training; they are "
+    "not independent market samples or a statistical-significance test."
+)
+
+with st.container(border=True):
+    st.markdown("**Honest negative result**")
+    st.write(
+        "The original hypothesis - tradable cross-sectional electricity alpha - "
+        "was not supported. The energy track was reframed as node-price and "
+        "cross-border-spread forecasting, where the target matches the network."
+    )
+
+st.markdown("### Choose your reading path")
+paths = st.columns(3)
+with paths[0]:
+    st.page_link(
+        "pages/8_GAT_Forecasting.py",
+        label="Key findings",
+        help="Results, controls, caveats, and interpretation.",
+    )
+with paths[1]:
+    st.page_link(
+        "pages/1_Performance.py",
+        label="Research evidence",
+        help="Backtest and factor-level diagnostics.",
+    )
+with paths[2]:
+    st.page_link(
+        "pages/7_Overview.py",
+        label="Platform appendix",
+        help="Pipelines, warehouse, orchestration, and reproducibility.",
+    )
+
+with st.expander("Plain-language glossary"):
+    st.markdown(
+        """
+- **Factor:** a numeric signal used to rank or forecast markets.
+- **Graph:** markets represented as nodes and their relationships as edges.
+- **GAT:** a graph attention network that learns neighbour weights.
+- **Skill:** improvement over a benchmark; higher is better.
+- **Rank IC:** how well predicted rankings match realised rankings.
+- **Sharpe ratio:** return per unit of volatility; useful only with evaluation context.
+"""
+    )
+
+st.divider()
+st.link_button(
+    "View source repository",
+    "https://github.com/witold-andelie/quant-foundation-gat",
 )

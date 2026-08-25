@@ -1,189 +1,372 @@
-"""Page 8 — GNN/GAT capstone: relational factors (equity) + energy forecasting.
+"""Evidence-first summary of the GAT experiments."""
 
-Reads committed result artifacts under ``docs/results/`` (so the view works on the
-Streamlit Cloud demo, where the cached real ENTSO-E data is not shipped) and,
-when present, the equity GAT dbt marts from DuckDB.
-"""
-from __future__ import annotations
-
-import sys
 from pathlib import Path
 
 import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-ROOT = Path(__file__).resolve().parents[1]          # streamlit_app/
-REPO = ROOT.parent
-RESULTS = REPO / "docs/results"
-sys.path.insert(0, str(ROOT))
-from common import EQUITY_DB, load_table  # noqa: E402
 
-st.title("🕸️ GNN/GAT Capstone — Relational Factors & Forecasting")
-st.caption(
-    "Relational factors propagate over a graph (correlation graph for equities, "
-    "physical interconnector graph for energy) via one shared GAT kernel, plus a "
-    "leakage-controlled energy price/spread forecasting study. "
-    "Full record: docs/energy_forecasting.md · docs/gat_experiment_log.md (E14)."
-)
-
-# ── Top Executive Summary Metrics ─────────────────────────────────────────────
-st.subheader("🎯 Core Research Value-Add (Before vs. After GAT)")
-m1, m2, m3, m4 = st.columns(4)
-with m1:
-    st.metric(
-        label="Equity Sharpe (OOS)",
-        value="+0.35 ~ +1.40",
-        delta="+1.74 to +2.79 vs Baseline (-1.39)",
-        help="GAT relational attention dynamically learns weights, turning the unlearned baseline (Sharpe -1.39) into positive alpha.",
-    )
-with m2:
-    st.metric(
-        label="Equity Total Return",
-        value="+1.92% (OOS)",
-        delta="Reversed -44.1% Baseline Loss",
-        help="In-sample return reached +60.0%; out-of-sample test turned the -44.1% baseline into positive net profit.",
-    )
-with m3:
-    st.metric(
-        label="Max Drawdown",
-        value="-4.9%",
-        delta="-55.2% Risk Reduction (vs -60.1%)",
-        delta_color="inverse",
-        help="Max drawdown dramatically reduced from -60.1% (naive equal-weight) down to -4.9% under GAT.",
-    )
-with m4:
-    st.metric(
-        label="Energy Relational Skill",
-        value="+0.056 Skill",
-        delta="5/5 Seeds Positive vs 2-Endpoint Ridge",
-        help="Whole-network message passing beats the model seeing both line endpoints on cross-border spread prediction.",
-    )
-
-st.divider()
+REPO_ROOT = Path(__file__).resolve().parents[2]
+RESULTS_DIR = REPO_ROOT / "docs" / "results"
 
 
-def _csv(name: str) -> pd.DataFrame:
-    p = RESULTS / name
-    return pd.read_csv(p) if p.exists() else pd.DataFrame()
+def _csv(name):
+    path = RESULTS_DIR / name
+    if not path.exists():
+        return pd.DataFrame()
+    return pd.read_csv(path)
 
 
-def _skill_bar(df: pd.DataFrame, scale: str):
+def _finding_card(label, value, title, body):
+    with st.container(border=True):
+        st.caption(label)
+        st.markdown(f"## {value}")
+        st.markdown(f"**{title}**")
+        st.write(body)
+
+
+def _skill_chart(frame, models, title, colours):
+    data = frame[frame["model"].isin(models)].copy()
+    labels = {
+        "no_graph_ridge": "No graph ridge",
+        "uniform_graph_ridge": "Uniform neighbours",
+        "gat_node": "GAT node",
+        "edge_persistence": "Edge persistence",
+        "edge_ridge": "Edge ridge",
+        "edge_gat": "Edge GAT",
+    }
+    data["Model"] = data["model"].map(labels).fillna(data["model"])
     fig = px.bar(
-        df.sort_values("skill"), x="skill", y="predictor", orientation="h",
-        color="skill", color_continuous_scale=scale, text="skill",
-        hover_data=[c for c in ("rank_ic", "note") if c in df.columns],
+        data,
+        x="skill",
+        y="Model",
+        orientation="h",
+        text="skill",
+        color="Model",
+        color_discrete_map=colours,
+        title=title,
     )
-    fig.update_traces(texttemplate="%{text:.3f}")
-    fig.update_layout(showlegend=False, coloraxis_showscale=False,
-                      height=280, margin=dict(l=0, r=0, t=10, b=0),
-                      xaxis_title="skill vs persistence", yaxis_title="")
+    fig.update_traces(texttemplate="%{text:.3f}", textposition="outside")
+    fig.update_layout(
+        showlegend=False,
+        height=310,
+        margin={"l": 10, "r": 30, "t": 55, "b": 10},
+        xaxis_title="Skill versus benchmark (higher is better)",
+        yaxis_title="",
+    )
     return fig
 
 
-# ── Equity relational factors (GAT) ───────────────────────────────────────────
-st.header("📈 Equity Relational Factors: GAT vs. Baselines")
-st.markdown(
-    """
-    **The Research Narrative:**
-    * **Page 1 Baseline (-44.1% Return / -1.39 Sharpe):** Represents naive equal-weighted pooling of 10 raw factors without graph topology or machine learning. Invalid/noisy signals severely dragged the portfolio down.
-    * **Uniform Mean Anchor (-0.001 Sharpe):** Propagates features over the stock correlation graph using naive equal-neighbor averaging (pure unlearned graph structure).
-    * **GAT Relational Factor (+0.35 ~ +1.40 Sharpe):** Dynamically learns multi-head attention weights over the correlation graph, selectively filtering noise and capturing lead-lag cross-asset relationships.
-    """
-)
+node_results = _csv("energy_forecast_node_skill.csv").rename(columns={"predictor": "model"})
+edge_results = _csv("energy_forecast_edge_skill.csv").rename(columns={"predictor": "model"})
+equity_summary = _csv("equity_gat_summary.csv")
+findings = _csv("energy_gnn_findings.csv")
 
-# Multi-strategy comparison table
-comp_data = [
-    {
-        "Strategy / Model": "① Naive Equal-Weighted Composite (Page 1 Baseline)",
-        "Graph Topology?": "❌ None",
-        "Learning Method": "None (Equal-Weight 1/10)",
-        "OOS Sharpe": "-1.39",
-        "OOS Total Return": "-44.1%",
-        "Max Drawdown": "-60.1%",
-        "Rank IC (OOS)": "-0.028",
-        "Status / Conclusion": "Unlearned Baseline (Dragged by Noise)",
-    },
-    {
-        "Strategy / Model": "② Uniform Mean Graph Anchor (Propagator Seam)",
-        "Graph Topology?": "✅ Correlation Graph (Top-k=8)",
-        "Learning Method": "None (Uniform Neighbor Mean)",
-        "OOS Sharpe": "-0.001",
-        "OOS Total Return": "-0.09%",
-        "Max Drawdown": "-8.8%",
-        "Rank IC (OOS)": "+0.008",
-        "Status / Conclusion": "A/B Control Anchor (Graph Topology Only)",
-    },
-    {
-        "Strategy / Model": "③ GAT Relational Factor Model (Ours)",
-        "Graph Topology?": "✅ Correlation Graph (Top-k=8)",
-        "Learning Method": "✅ GATv2 Attention (4 Heads, ELU)",
-        "OOS Sharpe": "+0.35 ~ +1.40",
-        "OOS Total Return": "+1.92% (OOS) / +60.0% (IS)",
-        "Max Drawdown": "-4.9%",
-        "Rank IC (OOS)": "+0.043 (IS) / +0.005 (OOS)",
-        "Status / Conclusion": "🏆 Winner (Learned Attention Adds Value in 30/30 Seeds)",
-    },
-]
-st.subheader("📊 Full Comparison Matrix: Naive vs. Uniform vs. GAT")
-st.dataframe(pd.DataFrame(comp_data), use_container_width=True, hide_index=True)
-
-eq = _csv("equity_gat_summary.csv")
-if not eq.empty:
-    st.subheader("Multi-Seed Hyperparameter & Sensitivity Summary (CSV Artifacts)")
-    st.dataframe(eq, use_container_width=True, hide_index=True)
-
-scorecard = load_table(EQUITY_DB, "fct_gat_scorecard")
-vs_baseline = load_table(EQUITY_DB, "fct_gat_vs_baseline")
-if not scorecard.empty:
-    st.subheader("Live GAT Scorecard (from DuckDB dbt Marts)")
-    st.dataframe(scorecard, use_container_width=True, hide_index=True)
-if not vs_baseline.empty:
-    st.subheader("Live GAT vs. Baseline Anchors (from DuckDB dbt Marts)")
-    st.dataframe(vs_baseline, use_container_width=True, hide_index=True)
-
-st.divider()
-
-# ── Energy forecasting ────────────────────────────────────────────────────────
-st.header("⚡ Energy Price & Spread Forecasting (Skill Ladder)")
-st.markdown(
-    """
-    **The Scientific Reframe (E11–E14):**
-    * In electricity markets, cross-sectional day-ahead price long/short is an **untradeable loss** (-100% total return, E13b) due to physical price coupling and scarcity tail-spikes.
-    * The project reframed energy to **forecast skill ladder evaluation**: *Does the physical interconnector graph improve forecast skill over no-graph baselines?*
-    * **Metric:** $\\text{Skill Score} = 1 - \\text{MSE}(\\text{model}) / \\text{MSE}(\\text{persistence})$ ($0 = \\text{baseline carry}$, $>0 = \\text{true skill}$).
-    """
-)
-
-node, edge, findings = _csv("energy_forecast_node_skill.csv"), _csv("energy_forecast_edge_skill.csv"), _csv("energy_gnn_findings.csv")
-
-c1, c2 = st.columns(2)
-with c1:
-    st.subheader("Node-level — Next-Period Price Forecast")
-    if not node.empty:
-        st.plotly_chart(_skill_bar(node, "Blues"), use_container_width=True)
-        st.success("Graph Lift (Uniform − No-Graph): **+0.131 Skill** — validated by synthetic negative control (~0).")
-with c2:
-    st.subheader("Edge-level — Cross-Border Spread Forecast")
-    if not edge.empty:
-        st.plotly_chart(_skill_bar(edge, "Greens"), use_container_width=True)
-        st.success("Message Passing vs. Both-Endpoint Model: **+0.056 Skill (5/5 Seeds)** — GNN excels on irreducibly relational targets.")
-
-st.subheader("Findings Matrix (E14) — Robust Wins & Documented Nulls")
-if not findings.empty:
-    def _hl(row):
-        v = str(row.get("verdict", ""))
-        bg = {"robust *": "#1b5e2055", "robust": "#1b5e2033"}.get(v, "#80808022" if v in ("wash", "null") else "")
-        return [f"background-color:{bg}"] * len(row)
-    st.dataframe(findings.style.apply(_hl, axis=1), use_container_width=True, hide_index=True)
-
-# ── Core Scientific Conclusions ───────────────────────────────────────────────
-st.divider()
-st.subheader("🎓 Core Scientific Conclusions (Takeaways)")
+st.title("Key Findings: Do relationships add predictive value?")
 st.info(
+    "**Short answer:** yes, the graph itself adds useful information. Learned "
+    "attention helps most on ranking and cross-border spread prediction, but it "
+    "does not beat simple neighbour averaging on every metric."
+)
+
+left, right = st.columns(2)
+with left:
+    _finding_card(
+        "EQUITY",
+        "30 / 30 seeds",
+        "GAT improved over the uniform anchor",
+        "Selected OOS Sharpe was 1.42 and 3 of 4 gates passed. The best single "
+        "factor remained higher at 2.88.",
+    )
+with right:
+    _finding_card(
+        "ENERGY PRICE",
+        "+0.131 skill",
+        "Physical connectivity helped",
+        "Uniform neighbours improved skill from 0.224 to 0.355 over the "
+        "no-graph ridge model.",
+    )
+
+left, right = st.columns(2)
+with left:
+    _finding_card(
+        "ATTENTION",
+        "0.612 rank IC",
+        "Better ranking, slightly worse MSE",
+        "GAT ranked zones better than uniform aggregation (0.612 vs 0.584), "
+        "while MSE skill was 0.347 vs 0.355.",
+    )
+with right:
+    _finding_card(
+        "CROSS-BORDER SPREAD",
+        "+0.056 skill",
+        "Strongest result on a relational target",
+        "Edge GAT improved skill from 0.192 to 0.248 over edge ridge in 5 of 5 seeds.",
+    )
+
+st.caption(
+    "30/30 and 5/5 describe optimisation-seed stability. They are not independent "
+    "market samples and are not statistical-significance tests."
+)
+
+st.markdown("### How to read the experiment")
+ladder = st.columns(3)
+steps = [
+    ("No graph", "Own-market features only", "What can the node predict alone?"),
+    (
+        "Uniform neighbours",
+        "Simple neighbour average",
+        "Does connected-market information add value?",
+    ),
+    (
+        "Learned attention",
+        "Flexible GAT model",
+        "Does learned reweighting improve over the graph anchor?",
+    ),
+]
+for column, (name, mechanism, question) in zip(ladder, steps):
+    with column:
+        with st.container(border=True):
+            st.markdown(f"**{name}**")
+            st.caption(mechanism)
+            st.write(question)
+
+st.warning(
+    "Uniform aggregation and GAT are not a capacity-matched, attention-only "
+    "ablation: GAT also adds learned projections, nonlinearities, and parameters. "
+    "Results therefore show GAT-over-uniform performance, not the pure causal "
+    "effect of attention."
+)
+
+with st.expander("Metric definitions"):
+    st.markdown(
+        """
+- **OOS Sharpe:** out-of-sample return divided by volatility.
+- **Skill:** improvement in forecast error relative to the stated benchmark.
+- **Rank IC:** rank correlation between predictions and realised outcomes.
+- **Seed stability:** whether repeated optimisation runs produce the same direction
+  of comparison; it is not a substitute for temporal or statistical validation.
+"""
+    )
+
+equity_tab, node_tab, edge_tab, validity_tab = st.tabs(
+    [
+        "US equities",
+        "Energy prices",
+        "Cross-border spreads",
+        "Validity and limits",
+    ]
+)
+
+with equity_tab:
+    st.subheader("US equities: promising, but not the best standalone strategy")
+    st.write(
+        "The equity experiment asks whether a graph-composite model adds value over "
+        "a uniform graph anchor. Both equity alpha runners share the original PyG "
+        "GATConv-based kernel; this shared-kernel claim does not extend to every "
+        "forecasting model in the repository."
+    )
+    equity_comparison = pd.DataFrame(
+        [
+            {
+                "Model": "Naive composite",
+                "OOS Sharpe": -1.39,
+                "Interpretation": "Contextual legacy baseline; not capacity matched",
+            },
+            {
+                "Model": "Uniform graph anchor",
+                "OOS Sharpe": -0.001,
+                "Interpretation": "Simple relational anchor",
+            },
+            {
+                "Model": "Selected GAT composite",
+                "OOS Sharpe": 1.42,
+                "Interpretation": "Improved over uniform; passed 3 of 4 gates",
+            },
+            {
+                "Model": "Best single factor",
+                "OOS Sharpe": 2.88,
+                "Interpretation": "Still the strongest standalone result",
+            },
+        ]
+    )
+    st.dataframe(
+        equity_comparison,
+        width="stretch",
+        hide_index=True,
+        column_config={
+            "OOS Sharpe": st.column_config.NumberColumn(format="%.3f"),
+        },
+    )
+    st.success(
+        "Across 30 optimisation seeds, GAT minus uniform Sharpe was positive. "
+        "That supports training stability, not independent statistical significance."
+    )
+    st.warning(
+        "Remaining point-in-time caveat: the static equity graph is estimated on "
+        "the full in-sample window and then reused within earlier training dates. "
+        "This can introduce training-period look-ahead in graph construction."
+    )
+    st.caption(
+        "Attention coefficients are model diagnostics, not causal feature "
+        "importance. Observed weights were near-uniform, consistent with modest "
+        "and fairly stationary reweighting rather than a discovered causal "
+        "lead-lag structure."
+    )
+    if not equity_summary.empty:
+        with st.expander("Committed equity summary artefact"):
+            st.dataframe(equity_summary, width="stretch", hide_index=True)
+
+with node_tab:
+    st.subheader("Energy node prices: graph structure helps; attention is mixed")
+    st.write(
+        "The forecasting implementation uses a GATv2 node model. It is distinct "
+        "from the GATConv alpha runners used in the equity experiment."
+    )
+    if node_results.empty:
+        st.warning("Committed node summary CSV was not found.")
+    else:
+        st.plotly_chart(
+            _skill_chart(
+                node_results,
+                ["no_graph_ridge", "uniform_graph_ridge", "gat_node"],
+                "Node-price forecast skill",
+                {
+                    "No graph ridge": "#94A3B8",
+                    "Uniform neighbours": "#2563EB",
+                    "GAT node": "#F59E0B",
+                },
+            ),
+            width="stretch",
+            config={"displayModeBar": False},
+        )
+        selected = node_results[
+            node_results["model"].isin(
+                ["no_graph_ridge", "uniform_graph_ridge", "gat_node"]
+            )
+        ][["model", "skill", "rank_ic"]]
+        st.dataframe(
+            selected,
+            width="stretch",
+            hide_index=True,
+            column_config={
+                "skill": st.column_config.NumberColumn(format="%.3f"),
+                "rank_ic": st.column_config.NumberColumn(format="%.3f"),
+            },
+        )
+    st.markdown(
+        """
+- Adding physical neighbours improved MSE skill from **0.224 to 0.355**.
+- GAT was slightly lower on MSE skill: **0.347 vs 0.355**.
+- GAT was better on cross-sectional ranking: **0.612 vs 0.584**.
+
+The defensible conclusion is metric-specific: physical topology helps, while
+learned attention trades a little MSE performance for better ranking.
+"""
+    )
+
+with edge_tab:
+    st.subheader("Cross-border spreads: the clearest relational result")
+    st.write(
+        "The edge model predicts the price difference across an interconnector. "
+        "Its dense GAT encoder and MLP edge head are a separate implementation: "
+        "node embeddings from network message passing are concatenated for each "
+        "edge before spread prediction."
+    )
+    if edge_results.empty:
+        st.warning("Committed edge summary CSV was not found.")
+    else:
+        st.plotly_chart(
+            _skill_chart(
+                edge_results,
+                ["edge_persistence", "edge_ridge", "edge_gat"],
+                "Cross-border spread forecast skill",
+                {
+                    "Edge persistence": "#94A3B8",
+                    "Edge ridge": "#2563EB",
+                    "Edge GAT": "#059669",
+                },
+            ),
+            width="stretch",
+            config={"displayModeBar": False},
+        )
+        st.dataframe(
+            edge_results[
+                edge_results["model"].isin(
+                    ["edge_persistence", "edge_ridge", "edge_gat"]
+                )
+            ][["model", "skill", "rank_ic"]],
+            width="stretch",
+            hide_index=True,
+            column_config={
+                "skill": st.column_config.NumberColumn(format="%.3f"),
+                "rank_ic": st.column_config.NumberColumn(format="%.3f"),
+            },
+        )
+    st.success(
+        "Edge GAT improved skill from 0.192 to 0.248 (+0.056) over edge ridge "
+        "across 5 of 5 seeds."
+    )
+    st.caption(
+        "Because edge ridge already sees both endpoint features, the lift is "
+        "consistent with useful whole-network context. It is not a pure causal "
+        "message-passing estimate because model capacities are not matched."
+    )
+
+with validity_tab:
+    st.subheader("What is controlled, and what remains")
+    controlled, remaining = st.columns(2)
+    with controlled:
+        with st.container(border=True):
+            st.markdown("**Implemented controls**")
+            st.markdown(
+                """
+- Out-of-sample evaluation and repeated optimisation seeds
+- No-graph and uniform-neighbour anchors
+- Forecast-vintage versus realised-feature separation
+- Synthetic independent-zone negative control
+- Committed result artefacts and reproducible runners
+"""
+            )
+    with remaining:
+        with st.container(border=True):
+            st.markdown("**Documented limitations**")
+            st.markdown(
+                """
+- Static equity graph uses the full in-sample window
+- ENTSO-E resampling includes bidirectional interpolation, so publication-time
+  and vintage causality still need a full audit
+- Model-capacity matching is incomplete
+- Seed repetition does not establish economic significance
+- Attention weights are not causal explanations
+"""
+            )
+
+    st.warning(
+        "**Honest negative result:** the original cross-sectional electricity "
+        "trading-alpha hypothesis was rejected. The work was reframed as price "
+        "and spread forecasting rather than hiding the failed hypothesis."
+    )
+    st.write(
+        "The correct claim is that leakage controls are implemented with documented "
+        "remaining limitations - not that the system is completely leak-safe or "
+        "that false positives have been eliminated."
+    )
+    st.caption(
+        "The previously reported drawdown change from -60.1% to -4.9% is a "
+        "descriptive comparison to an unmatched naive baseline; it should not be "
+        "presented as causal risk reduction."
+    )
+    if not findings.empty:
+        with st.expander("Committed energy finding matrix"):
+            st.dataframe(findings, width="stretch", hide_index=True)
+
+st.divider()
+st.markdown(
     """
-    1. **Equity Track (Alpha Value-Add):** Learned attention on the stock correlation graph consistently outperforms both unlearned naive averaging and uniform neighbor smoothing (+1.74 ~ +2.79 Sharpe improvement, beating uniform in 30/30 seeds). Attention learns selective market structure rather than trivial smoothing.
-    2. **Energy Track (Relational Concentration):** While naive price-level averaging already captures most node-level coupling (+0.131 skill), GNN message passing delivers its strongest advantage (+0.056 skill, 5/5 seeds) on **irreducibly relational edge targets (cross-border spreads)** where whole-network topology is essential.
-    3. **Methodological Rigor:** Complete leak-safe time splits (embargo $\\ge k$), unclipped evaluation returns, and synthetic negative controls ensure zero false-positive claims.
-    """
+**Bottom line:** graph structure provides the most robust lift. Learned attention
+is not universally superior, but it is most useful when the target is genuinely
+relational - especially cross-border electricity spreads.
+"""
 )
