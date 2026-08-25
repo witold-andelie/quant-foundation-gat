@@ -1,170 +1,315 @@
-"""Page 1 — Overview: both-track summary, platform health, module coverage."""
-from __future__ import annotations
+"""Platform overview: research outcomes first, engineering evidence second."""
 
-import sys
 from pathlib import Path
 
 import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from common import ENERGY_DB, EQUITY_DB, ENERGY_TABLES, EQUITY_TABLES, ROOT, list_tables, pick
+from common import (
+    ENERGY_DB,
+    ENERGY_TABLES,
+    EQUITY_DB,
+    EQUITY_TABLES,
+    ROOT,
+    list_tables,
+    pick,
+)
 
-st.title("📊 Platform Overview")
-st.caption("Cross-track summary — Second Foundation Energy · US Equities Demo")
 
-col_l, col_r = st.columns([5, 1])
-with col_r:
-    if st.button("🏠 Home", use_container_width=True, key="overview_home"):
-        st.switch_page("home.py")
+RESULTS_DIR = ROOT / "docs" / "results"
 
-# ── Both-track metrics side by side ──────────────────────────────────────────
-col_e, col_q = st.columns(2)
+st.title("Platform & Reproducibility")
+st.caption("Post-GAT research outcomes first; platform evidence and legacy diagnostics second.")
 
-def _metric_block(db: Path, tm: dict, label: str, col):
-    with col:
-        st.markdown(f"### {label}")
-        metrics = pick(db, *tm["metrics"])
-        registry = pick(db, *tm["registry"])
-        diagnostics = pick(db, *tm["diagnostics"])
+if st.button("Back to Start Here", width="stretch", key="overview_home"):
+    st.switch_page("home.py")
 
-        def _m(col_name, fmt):
-            if metrics.empty or col_name not in metrics.columns:
-                return "—"
-            try:
-                return fmt.format(float(metrics[col_name].iloc[0]))
-            except Exception:
-                return "—"
 
-        c1, c2, c3 = st.columns(3)
-        with c1: st.metric("Sharpe", _m("sharpe", "{:.2f}"))
-        with c2: st.metric("Max DD", _m("max_drawdown", "{:.1%}"))
-        with c3: st.metric("Factors", len(registry) if not registry.empty else "—")
+def _read_result(name: str) -> pd.DataFrame:
+    path = RESULTS_DIR / name
+    return pd.read_csv(path) if path.exists() else pd.DataFrame()
 
+
+node = _read_result("energy_forecast_node_skill.csv")
+edge = _read_result("energy_forecast_edge_skill.csv")
+equity = _read_result("equity_gat_summary.csv")
+
+st.markdown("### Before vs after GAT")
+st.write(
+    "Each track shows the failed or weak starting point beside the later controlled "
+    "graph experiment. Energy changed its prediction target, so its old Sharpe and "
+    "new forecast skill are context, not directly comparable units."
+)
+
+energy_col, equity_col = st.columns(2)
+
+with energy_col:
+    with st.container(border=True):
+        st.markdown("#### European electricity")
+        st.caption("BEFORE GAT - REJECTED TRADING HYPOTHESIS")
+        before_left, before_right = st.columns(2)
+        before_left.metric("Legacy Sharpe", "-0.80")
+        before_right.metric("Legacy max drawdown", "-100.0%")
+        st.error(
+            "Cross-sectional electricity alpha was not stable or tradable. "
+            "This hypothesis was rejected."
+        )
+
+        st.caption("AFTER REFRAME - PRICE AND SPREAD FORECASTING")
+        st.markdown(
+            """
+**Node-price MSE skill**
+
+No graph **0.224** -> Uniform neighbours **0.355** -> GAT **0.347**
+
+**Node ranking**
+
+Uniform rank IC **0.584** -> GAT rank IC **0.612**
+
+**Cross-border spread skill**
+
+Edge ridge **0.192** -> Edge GAT **0.248** (**+0.056**, 5/5 seeds)
+"""
+        )
+        st.success(
+            "After: physical topology adds robust information; attention helps "
+            "ranking and performs best on the relational spread target."
+        )
+
+with equity_col:
+    with st.container(border=True):
+        st.markdown("#### US equities")
+        st.caption("BEFORE GAT - NAIVE COMPOSITE")
+        before_left, before_right = st.columns(2)
+        before_left.metric("Naive OOS Sharpe", "-1.39")
+        before_right.metric("Naive max drawdown", "-60.1%")
+        st.warning(
+            "The naive equal-weight composite is contextual and is not a "
+            "capacity-matched GAT baseline."
+        )
+
+        st.caption("AFTER GAT - CONTROLLED GRAPH COMPARISON")
+        after_left, after_mid, after_right = st.columns(3)
+        after_left.metric("Uniform", "-0.001")
+        after_mid.metric("Selected GAT", "1.42")
+        after_right.metric("Best single", "2.88")
+        st.markdown(
+            """
+- GAT minus uniform Sharpe was positive in **30/30 optimisation seeds**.
+- The selected GAT composite passed **3 of 4** research gates.
+- GAT improved the composite anchor, but did **not** beat the best single factor.
+"""
+        )
+        st.success(
+            "After: relational modelling repaired the weak composite anchor, "
+            "with an explicit best-factor benchmark preventing an overclaim."
+        )
+
+st.caption(
+    "Skill, rank IC, and Sharpe answer different questions. Seed counts indicate "
+    "optimisation stability, not statistical significance; pre-GAT naive results "
+    "are contextual rather than capacity-matched causal controls."
+)
+
+st.markdown("### Controlled comparisons")
+comparison = pd.DataFrame(
+    [
+        {
+            "Track / target": "Energy node price",
+            "Anchor": "No-graph ridge: 0.224 skill",
+            "Relational model": "Uniform graph: 0.355 skill",
+            "Change": "+0.131",
+            "Reading": "Physical neighbour information helps",
+        },
+        {
+            "Track / target": "Energy node price",
+            "Anchor": "Uniform: 0.355 skill / 0.584 rank IC",
+            "Relational model": "GAT: 0.347 skill / 0.612 rank IC",
+            "Change": "-0.008 / +0.028",
+            "Reading": "Attention improves ranking, not MSE",
+        },
+        {
+            "Track / target": "Cross-border spread",
+            "Anchor": "Edge ridge: 0.192 skill",
+            "Relational model": "Edge GAT: 0.248 skill",
+            "Change": "+0.056",
+            "Reading": "Strongest result on a relational target",
+        },
+        {
+            "Track / target": "US equity composite",
+            "Anchor": "Uniform graph: -0.001 OOS Sharpe",
+            "Relational model": "Selected GAT: 1.42 OOS Sharpe",
+            "Change": "Positive in 30/30 seeds",
+            "Reading": "Improves anchor; best single factor is 2.88",
+        },
+    ]
+)
+st.dataframe(comparison, width="stretch", hide_index=True)
+
+with st.expander("Superseded pre-GAT trading baselines (historical diagnostic only)"):
+    st.warning(
+        "These figures belong to the original cross-sectional trading-alpha "
+        "hypothesis. They are retained to document why that hypothesis was "
+        "rejected; they are not the final GAT forecasting results."
+    )
+
+    def _legacy_row(db: Path, tables: dict, track: str) -> dict:
+        metrics = pick(db, *tables["metrics"])
+        registry = pick(db, *tables["registry"])
+        diagnostics = pick(db, *tables["diagnostics"])
+
+        def _number(column: str):
+            if metrics.empty or column not in metrics.columns:
+                return None
+            return float(metrics[column].iloc[0])
+
+        passing = None
+        sharpe = _number("sharpe")
+        max_drawdown = _number("max_drawdown")
         if not diagnostics.empty and "consistency_score" in diagnostics.columns:
-            passing = (diagnostics["consistency_score"] >= 0.5).sum()
-            st.metric("Factors passing consistency gate", f"{passing} / {len(diagnostics)}")
+            passing = int((diagnostics["consistency_score"] >= 0.5).sum())
+        return {
+            "Legacy track": track,
+            "Sharpe": f"{sharpe:.2f}" if sharpe is not None else None,
+            "Max drawdown": (
+                f"{max_drawdown:.1%}"
+                if max_drawdown is not None
+                else None
+            ),
+            "Raw factors": len(registry) if not registry.empty else None,
+            "Consistency gate": (
+                f"{passing} / {len(diagnostics)}" if passing is not None else None
+            ),
+            "Status": "Rejected / contextual baseline",
+        }
 
-        backtest = pick(db, *tm["backtest"])
-        if not backtest.empty:
-            x_col = next((c for c in ("market_ts", "date") if c in backtest.columns), None)
-            if x_col:
-                backtest[x_col] = pd.to_datetime(backtest[x_col])
-                fig = px.line(backtest.sort_values(x_col), x=x_col, y="equity_curve",
-                              labels={x_col: "", "equity_curve": "NAV"},
-                              color_discrete_sequence=["#2563EB"])
-                fig.update_layout(height=200, margin=dict(l=0, r=0, t=10, b=0),
-                                  showlegend=False, yaxis_title="NAV")
-                st.plotly_chart(fig, use_container_width=True)
-
-_metric_block(ENERGY_DB, ENERGY_TABLES, "⚡ Second Foundation Energy", col_e)
-_metric_block(EQUITY_DB, EQUITY_TABLES, "📈 US Equities Demo", col_q)
+    legacy = pd.DataFrame(
+        [
+            _legacy_row(
+                ENERGY_DB,
+                ENERGY_TABLES,
+                "Energy cross-sectional alpha",
+            ),
+            _legacy_row(
+                EQUITY_DB,
+                EQUITY_TABLES,
+                "Equity naive composite",
+            ),
+        ]
+    )
+    st.dataframe(
+        legacy,
+        width="stretch",
+        hide_index=True,
+    )
+    st.write(
+        "The energy research question was subsequently reframed from tradable "
+        "cross-sectional alpha to node-price and edge-spread forecasting."
+    )
 
 st.divider()
+st.subheader("Engineering coverage")
 
-# ── Platform health matrix ────────────────────────────────────────────────────
-st.subheader("Module Coverage — Health Matrix")
+energy_tables = set(list_tables(ENERGY_DB))
+equity_tables = set(list_tables(EQUITY_DB))
 
-energy_tbls = set(list_tables(ENERGY_DB))
-equity_tbls = set(list_tables(EQUITY_DB))
 
-def _chk(condition: bool) -> str:
-    return "✅" if condition else "⬜"
+def _check(condition: bool) -> str:
+    return "Ready" if condition else "Not detected"
+
 
 health = [
-    {"Module": "M1 — Containerization", "Technology": "Docker · Terraform", "Status": _chk((ROOT / "infra/terraform").exists())},
-    {"Module": "M2 — Orchestration", "Technology": "Kestra (5 flows)", "Status": _chk((ROOT / "flows/kestra").exists())},
-    {"Module": "Workshop 1 — dlt Ingestion", "Technology": "dlt v1.26 incremental", "Status": _chk(bool(energy_tbls | equity_tbls))},
-    {"Module": "M3 — Data Warehouse", "Technology": "DuckDB · BigQuery", "Status": _chk(ENERGY_DB.exists() or EQUITY_DB.exists())},
-    {"Module": "M4 — Analytics Eng.", "Technology": "dbt (19 models)", "Status": _chk((ROOT / "dbt_energy_alpha").exists())},
-    {"Module": "M5 — Data Platforms", "Technology": "Bruin (8 assets)", "Status": _chk((ROOT / "bruin/pipelines").exists())},
-    {"Module": "M6 — Batch Processing", "Technology": "Apache Spark (7 features)", "Status": _chk((ROOT / "src/quant_alpha/batch").exists())},
-    {"Module": "M7 — Streaming", "Technology": "Redpanda · Avro", "Status": _chk("live_energy_signals" in energy_tbls)},
-    {"Module": "Workshop 2 — RisingWave", "Technology": "5 materialized views", "Status": _chk((ROOT / "src/quant_alpha/streaming/risingwave").exists())},
-    {"Module": "Cloud + K8s", "Technology": "Helm chart · GKE · WI", "Status": _chk((ROOT / "infra/helm").exists())},
-    {"Module": "CI/CD", "Technology": "GitHub Actions (7-stage)", "Status": _chk((ROOT / ".github/workflows").exists())},
+    {
+        "Module": "Containerisation",
+        "Technology": "Docker / Terraform",
+        "Status": _check((ROOT / "infra/terraform").exists()),
+    },
+    {
+        "Module": "Orchestration",
+        "Technology": "Kestra",
+        "Status": _check((ROOT / "flows/kestra").exists()),
+    },
+    {
+        "Module": "Ingestion",
+        "Technology": "dlt incremental pipelines",
+        "Status": _check(bool(energy_tables | equity_tables)),
+    },
+    {
+        "Module": "Warehouse",
+        "Technology": "DuckDB / BigQuery",
+        "Status": _check(ENERGY_DB.exists() or EQUITY_DB.exists()),
+    },
+    {
+        "Module": "Analytics engineering",
+        "Technology": "dbt",
+        "Status": _check((ROOT / "dbt_energy_alpha").exists()),
+    },
+    {
+        "Module": "Data platforms",
+        "Technology": "Bruin",
+        "Status": _check((ROOT / "bruin/pipelines").exists()),
+    },
+    {
+        "Module": "Batch processing",
+        "Technology": "Apache Spark",
+        "Status": _check((ROOT / "src/quant_alpha/batch").exists()),
+    },
+    {
+        "Module": "Streaming",
+        "Technology": "Redpanda / Avro",
+        "Status": _check("live_energy_signals" in energy_tables),
+    },
+    {
+        "Module": "Cloud deployment",
+        "Technology": "Helm / Kubernetes",
+        "Status": _check((ROOT / "infra/helm").exists()),
+    },
+    {
+        "Module": "CI/CD",
+        "Technology": "GitHub Actions",
+        "Status": _check((ROOT / ".github/workflows").exists()),
+    },
 ]
-health_df = pd.DataFrame(health)
-st.dataframe(health_df, use_container_width=True, hide_index=True)
+st.dataframe(pd.DataFrame(health), width="stretch", hide_index=True)
 
-st.divider()
+with st.expander("Factor inventory"):
+    energy_registry = pick(ENERGY_DB, *ENERGY_TABLES["registry"])
+    equity_registry = pick(EQUITY_DB, *EQUITY_TABLES["registry"])
+    chart_cols = st.columns(2)
 
-# ── Alpha universe radar ──────────────────────────────────────────────────────
-st.subheader("Alpha Factor Families")
+    def _family_chart(registry: pd.DataFrame, title: str, column):
+        with column:
+            if registry.empty or "family" not in registry.columns:
+                st.info("No registry data available.")
+                return
+            families = registry["family"].value_counts().reset_index()
+            families.columns = ["family", "count"]
+            fig = px.pie(
+                families,
+                names="family",
+                values="count",
+                title=title,
+                color_discrete_sequence=px.colors.qualitative.Set2,
+            )
+            fig.update_layout(height=300)
+            st.plotly_chart(fig, width="stretch")
 
-e_reg = pick(ENERGY_DB, *ENERGY_TABLES["registry"])
-q_reg = pick(EQUITY_DB, *EQUITY_TABLES["registry"])
+    _family_chart(energy_registry, "Energy factor families", chart_cols[0])
+    _family_chart(equity_registry, "Equity factor families", chart_cols[1])
 
-col_r1, col_r2 = st.columns(2)
-
-def _family_chart(reg: pd.DataFrame, title: str, col):
-    with col:
-        if reg.empty or "family" not in reg.columns:
-            st.info("No registry data")
-            return
-        fam = reg["family"].value_counts().reset_index()
-        fam.columns = ["family", "count"]
-        fig = px.pie(fam, names="family", values="count", title=title,
-                     color_discrete_sequence=px.colors.qualitative.Set2)
-        fig.update_layout(height=300)
-        st.plotly_chart(fig, use_container_width=True)
-
-_family_chart(e_reg, "Energy alpha families", col_r1)
-_family_chart(q_reg, "Equity alpha families", col_r2)
-
-# ── Diagnostics comparison ────────────────────────────────────────────────────
-e_diag = pick(ENERGY_DB, *ENERGY_TABLES["diagnostics"])
-q_diag = pick(EQUITY_DB, *EQUITY_TABLES["diagnostics"])
-
-if not e_diag.empty or not q_diag.empty:
-    st.subheader("Alpha Diagnostics — Cross-Track Comparison")
-
-    frames = []
-    if not e_diag.empty:
-        e_diag["track"] = "Energy"
-        frames.append(e_diag)
-    if not q_diag.empty:
-        q_diag["track"] = "Equity"
-        frames.append(q_diag)
-
-    combined = pd.concat(frames, ignore_index=True)
-    score_cols = [c for c in ("consistency_score", "robustness_score") if c in combined.columns]
-
-    if score_cols and "track" in combined.columns and "alpha_name" in combined.columns:
-        fig2 = px.bar(
-            combined.sort_values(score_cols[0], ascending=False),
-            x="alpha_name", y=score_cols[0], color="track",
-            barmode="group",
-            title=f"{score_cols[0].replace('_', ' ').title()} by alpha and track",
-            labels={"alpha_name": "", score_cols[0]: "Score [0,1]"},
-            color_discrete_map={"Energy": "#2563EB", "Equity": "#22C55E"},
-        )
-        fig2.add_hline(y=0.5, line_dash="dot", line_color="gray",
-                       annotation_text="threshold=0.5")
-        fig2.update_layout(height=350, xaxis_tickangle=-30)
-        st.plotly_chart(fig2, use_container_width=True)
-
-# ── Quick command reference ───────────────────────────────────────────────────
-st.divider()
-st.subheader("Quick Commands")
-st.code("""
-# Energy pipeline (synthetic data)
+with st.expander("Reproduction commands"):
+    st.code(
+        """
+# Energy pipeline
 quant-alpha energy-run
 
-# Equity pipeline (offline)
+# Equity pipeline
 quant-alpha run --offline
 
-# dlt incremental ingestion
-quant-alpha dlt-energy --start 2024-01-01
-quant-alpha dlt-equity --offline
-
-# Bruin asset graph
-quant-alpha bruin-lineage
-quant-alpha bruin-run --dry-run
-
-# Streaming stack
-docker compose up -d redpanda redpanda-console
-docker compose -f docker-compose.risingwave.yml up -d
-python -m quant_alpha.streaming.demo_signals
-""", language="bash")
+# GAT experiment runners
+quant-alpha gat-energy
+quant-alpha gat-equity
+""",
+        language="bash",
+    )
