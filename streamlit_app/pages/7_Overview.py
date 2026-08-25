@@ -47,34 +47,91 @@ energy_col, equity_col = st.columns(2)
 with energy_col:
     with st.container(border=True):
         st.markdown("#### European electricity")
+
         st.caption("BEFORE GAT - REJECTED TRADING HYPOTHESIS")
-        before_left, before_right = st.columns(2)
-        before_left.metric("Legacy Sharpe", "-0.80")
-        before_right.metric("Legacy max drawdown", "-100.0%")
+        legacy_energy = pd.DataFrame(
+            [
+                {
+                    "Target": "Cross-sectional trading alpha",
+                    "Model": "Legacy factor composite",
+                    "Sharpe": -0.80,
+                    "Max Drawdown": "-100.0%",
+                    "Verdict": "Rejected",
+                }
+            ]
+        )
+        st.dataframe(
+            legacy_energy,
+            width="stretch",
+            hide_index=True,
+            column_config={
+                "Sharpe": st.column_config.NumberColumn(format="%.2f"),
+            },
+        )
         st.error(
-            "Cross-sectional electricity alpha was not stable or tradable. "
-            "This hypothesis was rejected."
+            "The trading target failed. Forecast skill below uses a different "
+            "target and must not be read as a Sharpe improvement."
         )
 
-        st.caption("AFTER REFRAME - PRICE AND SPREAD FORECASTING")
-        st.markdown(
-            """
-**Node-price MSE skill**
-
-No graph **0.224** -> Uniform neighbours **0.355** -> GAT **0.347**
-
-**Node ranking**
-
-Uniform rank IC **0.584** -> GAT rank IC **0.612**
-
-**Cross-border spread skill**
-
-Edge ridge **0.192** -> Edge GAT **0.248** (**+0.056**, 5/5 seeds)
-"""
+        st.caption("AFTER REFRAME - MATCHED FORECAST COMPARISONS")
+        node_by_model = node.set_index("predictor")
+        edge_by_model = edge.set_index("predictor")
+        energy_comparison = pd.DataFrame(
+            [
+                {
+                    "Target": "Node price",
+                    "Model": "No-graph ridge",
+                    "Role": "Own features",
+                    "Skill": node_by_model.loc["no_graph_ridge", "skill"],
+                    "Rank IC": node_by_model.loc["no_graph_ridge", "rank_ic"],
+                    "Change": "Baseline",
+                },
+                {
+                    "Target": "Node price",
+                    "Model": "Uniform neighbours",
+                    "Role": "Graph anchor",
+                    "Skill": node_by_model.loc["uniform_graph_ridge", "skill"],
+                    "Rank IC": node_by_model.loc["uniform_graph_ridge", "rank_ic"],
+                    "Change": "+0.131 skill vs no graph",
+                },
+                {
+                    "Target": "Node price",
+                    "Model": "GAT node",
+                    "Role": "Learned graph",
+                    "Skill": node_by_model.loc["gat_node", "skill"],
+                    "Rank IC": node_by_model.loc["gat_node", "rank_ic"],
+                    "Change": "-0.008 skill; +0.028 rank vs uniform",
+                },
+                {
+                    "Target": "Border spread",
+                    "Model": "Edge ridge",
+                    "Role": "Endpoint baseline",
+                    "Skill": edge_by_model.loc["edge_ridge", "skill"],
+                    "Rank IC": edge_by_model.loc["edge_ridge", "rank_ic"],
+                    "Change": "Baseline",
+                },
+                {
+                    "Target": "Border spread",
+                    "Model": "Edge GAT",
+                    "Role": "Whole-network context",
+                    "Skill": edge_by_model.loc["edge_gat", "skill"],
+                    "Rank IC": edge_by_model.loc["edge_gat", "rank_ic"],
+                    "Change": "+0.056 skill; 5/5 seeds",
+                },
+            ]
+        )
+        st.dataframe(
+            energy_comparison,
+            width="stretch",
+            hide_index=True,
+            column_config={
+                "Skill": st.column_config.NumberColumn(format="%.3f"),
+                "Rank IC": st.column_config.NumberColumn(format="%.3f"),
+            },
         )
         st.success(
-            "After: physical topology adds robust information; attention helps "
-            "ranking and performs best on the relational spread target."
+            "Topology gives the clearest node-price lift; attention improves node "
+            "ranking and gives the strongest lift on cross-border spreads."
         )
 
 with equity_col:
