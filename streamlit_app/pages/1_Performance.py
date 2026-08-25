@@ -59,39 +59,57 @@ if is_energy:
         ]
     )
 else:
-    st.subheader("US equities")
-    st.warning(
-        "**Before:** the naive equal-weight composite produced OOS Sharpe -1.39 "
-        "and max drawdown -60.1%. It is context, not a capacity-matched GAT control."
+    st.subheader("US equities: matched OOS comparison")
+    st.info(
+        "All four rows below come from the same static walk-forward run: the same "
+        "404-observation OOS window, inputs, costs, and evaluation code."
     )
-    comparison = pd.DataFrame(
+    diagnostics_path = (
+        Path(__file__).resolve().parents[2]
+        / "docs"
+        / "results"
+        / "2026-06-10_matrix_static_wf_diagnostics.csv"
+    )
+    diagnostics = pd.read_csv(diagnostics_path)
+    model_order = [
+        "alpha_island_mean",
+        "alpha_uniform_composite",
+        "alpha_gat_composite",
+        "alpha_wq_010_gap_quality",
+    ]
+    labels = {
+        "alpha_island_mean": ("No propagation", "Island mean"),
+        "alpha_uniform_composite": ("Graph anchor", "Uniform aggregation"),
+        "alpha_gat_composite": ("Learned graph", "GAT composite"),
+        "alpha_wq_010_gap_quality": ("Reference", "Best single factor"),
+    }
+    matched = diagnostics.set_index("alpha_name").loc[model_order].reset_index()
+    matched["Stage"] = matched["alpha_name"].map(lambda name: labels[name][0])
+    matched["Model"] = matched["alpha_name"].map(lambda name: labels[name][1])
+    comparison = matched[
         [
-            {
-                "Stage": "Before GAT",
-                "Model": "Naive equal-weight composite",
-                "OOS Sharpe": -1.390,
-                "Conclusion": "Weak contextual baseline",
-            },
-            {
-                "Stage": "Graph anchor",
-                "Model": "Uniform aggregation",
-                "OOS Sharpe": -0.001,
-                "Conclusion": "Controlled relational anchor",
-            },
-            {
-                "Stage": "After GAT",
-                "Model": "Selected GAT composite",
-                "OOS Sharpe": 1.420,
-                "Conclusion": "Improved anchor; 3/4 gates; 30/30 seeds",
-            },
-            {
-                "Stage": "Reference ceiling",
-                "Model": "Best single factor",
-                "OOS Sharpe": 2.880,
-                "Conclusion": "Still stronger than selected GAT",
-            },
+            "Stage",
+            "Model",
+            "oos_total_return",
+            "oos_annualized_return",
+            "oos_annualized_volatility",
+            "oos_sharpe",
+            "oos_max_drawdown",
+            "oos_observations",
         ]
+    ].rename(
+        columns={
+            "oos_total_return": "Total Return",
+            "oos_annualized_return": "Ann. Mean Return",
+            "oos_annualized_volatility": "Ann. Vol",
+            "oos_sharpe": "OOS Sharpe",
+            "oos_max_drawdown": "Max Drawdown",
+            "oos_observations": "OOS N",
+        }
     )
+    for column in ["Total Return", "Ann. Mean Return", "Ann. Vol", "Max Drawdown"]:
+        comparison[column] = comparison[column].map(lambda value: f"{value:.1%}")
+    comparison["OOS N"] = comparison["OOS N"].astype(int)
 
 st.dataframe(
     comparison,
@@ -101,10 +119,20 @@ st.dataframe(
         "OOS Sharpe": st.column_config.NumberColumn(format="%.3f"),
     },
 )
-st.caption(
-    "Seed repetition measures optimisation stability, not independent statistical "
-    "significance. Naive and GAT models are not capacity-matched."
-)
+if is_energy:
+    st.caption(
+        "Forecast skill and Sharpe use different targets and are not directly comparable."
+    )
+else:
+    st.success(
+        "Tuned 5-seed CPU validation: GAT OOS Sharpe 1.37 +/- 0.39 versus "
+        "the same uniform anchor at -1.05 (mean lift +2.42). Attention lift "
+        "was positive in 30/30 runs across the three validation families."
+    )
+    st.caption(
+        "The table is the matched seed-0 diagnostic; the stability strip reports "
+        "the later tuned multi-seed validation. Seed counts are not significance tests."
+    )
 if st.button(
     "Open full GAT evidence, controls, and limitations",
     width="stretch",

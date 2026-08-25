@@ -80,36 +80,53 @@ Edge ridge **0.192** -> Edge GAT **0.248** (**+0.056**, 5/5 seeds)
 with equity_col:
     with st.container(border=True):
         st.markdown("#### US equities")
-        st.caption("BEFORE GAT - NAIVE COMPOSITE")
-        before_left, before_right = st.columns(2)
-        before_left.metric("Naive OOS Sharpe", "-1.39")
-        before_right.metric("Naive max drawdown", "-60.1%")
-        st.warning(
-            "The naive equal-weight composite is contextual and is not a "
-            "capacity-matched GAT baseline."
+        st.caption("MATCHED SAME-RUN OOS COMPARISON - 404 OBSERVATIONS")
+        diagnostics = _read_result("2026-06-10_matrix_static_wf_diagnostics.csv")
+        model_order = [
+            "alpha_island_mean",
+            "alpha_uniform_composite",
+            "alpha_gat_composite",
+            "alpha_wq_010_gap_quality",
+        ]
+        labels = {
+            "alpha_island_mean": ("Island mean", "No propagation"),
+            "alpha_uniform_composite": ("Uniform", "Graph anchor"),
+            "alpha_gat_composite": ("GAT", "Learned graph"),
+            "alpha_wq_010_gap_quality": ("Best single", "Reference"),
+        }
+        matched = diagnostics.set_index("alpha_name").loc[model_order].reset_index()
+        matched["Model"] = matched["alpha_name"].map(lambda name: labels[name][0])
+        matched["Role"] = matched["alpha_name"].map(lambda name: labels[name][1])
+        matched["Total Return"] = matched["oos_total_return"].map(
+            lambda value: f"{value:.1%}"
         )
-
-        st.caption("AFTER GAT - CONTROLLED GRAPH COMPARISON")
-        after_left, after_mid, after_right = st.columns(3)
-        after_left.metric("Uniform", "-0.001")
-        after_mid.metric("Selected GAT", "1.42")
-        after_right.metric("Best single", "2.88")
-        st.markdown(
-            """
-- GAT minus uniform Sharpe was positive in **30/30 optimisation seeds**.
-- The selected GAT composite passed **3 of 4** research gates.
-- GAT improved the composite anchor, but did **not** beat the best single factor.
-"""
+        matched["OOS Sharpe"] = matched["oos_sharpe"]
+        matched["Max Drawdown"] = matched["oos_max_drawdown"].map(
+            lambda value: f"{value:.1%}"
+        )
+        st.dataframe(
+            matched[["Model", "Role", "Total Return", "OOS Sharpe", "Max Drawdown"]],
+            width="stretch",
+            hide_index=True,
+            column_config={
+                "OOS Sharpe": st.column_config.NumberColumn(format="%.2f"),
+            },
+        )
+        st.metric(
+            "Tuned GAT OOS Sharpe (5 CPU seeds)",
+            "1.37 +/- 0.39",
+            delta="+2.42 vs uniform -1.05",
         )
         st.success(
-            "After: relational modelling repaired the weak composite anchor, "
-            "with an explicit best-factor benchmark preventing an overclaim."
+            "Attention lift was positive in 30/30 runs. The best single factor "
+            "remains the stricter ceiling at Sharpe 3.07."
         )
 
 st.caption(
-    "Skill, rank IC, and Sharpe answer different questions. Seed counts indicate "
-    "optimisation stability, not statistical significance; pre-GAT naive results "
-    "are contextual rather than capacity-matched causal controls."
+    "The equity table is a same-run A/B with identical OOS observations and "
+    "evaluation code. Energy changes target after rejecting the trading hypothesis, "
+    "so its old Sharpe and new forecast skill are contextual rather than common units. "
+    "Seed counts indicate optimisation stability, not significance."
 )
 
 st.markdown("### Controlled comparisons")
@@ -138,10 +155,10 @@ comparison = pd.DataFrame(
         },
         {
             "Track / target": "US equity composite",
-            "Anchor": "Uniform graph: -0.001 OOS Sharpe",
-            "Relational model": "Selected GAT: 1.42 OOS Sharpe",
-            "Change": "Positive in 30/30 seeds",
-            "Reading": "Improves anchor; best single factor is 2.88",
+            "Anchor": "Uniform graph: -1.05 OOS Sharpe",
+            "Relational model": "Tuned GAT: 1.37 +/- 0.39 OOS Sharpe",
+            "Change": "+2.42 mean Sharpe; positive in 30/30 runs",
+            "Reading": "Improves anchor; best single factor is 3.07",
         },
     ]
 )

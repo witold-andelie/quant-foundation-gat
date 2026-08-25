@@ -74,10 +74,10 @@ left, right = st.columns(2)
 with left:
     _finding_card(
         "EQUITY",
-        "30 / 30 seeds",
-        "GAT improved over the uniform anchor",
-        "Selected OOS Sharpe was 1.42 and 3 of 4 gates passed. The best single "
-        "factor remained higher at 2.88.",
+        "1.37 +/- 0.39",
+        "Tuned GAT OOS Sharpe across 5 CPU seeds",
+        "The matched uniform anchor was -1.05 (mean lift +2.42). Attention lift "
+        "was positive in 30/30 runs; the best single factor remained 3.07.",
     )
 with right:
     _finding_card(
@@ -160,62 +160,85 @@ equity_tab, node_tab, edge_tab, validity_tab = st.tabs(
 )
 
 with equity_tab:
-    st.subheader("US equities: promising, but not the best standalone strategy")
+    st.subheader("US equities: matched OOS evidence")
     st.write(
-        "The equity experiment asks whether a graph-composite model adds value over "
-        "a uniform graph anchor. Both equity alpha runners share the original PyG "
-        "GATConv-based kernel; this shared-kernel claim does not extend to every "
-        "forecasting model in the repository."
+        "The primary table uses one static walk-forward run so every row shares "
+        "the same 404-observation OOS window, input panel, costs, and evaluation code."
     )
-    equity_comparison = pd.DataFrame(
+    diagnostics = _csv("2026-06-10_matrix_static_wf_diagnostics.csv")
+    model_order = [
+        "alpha_island_mean",
+        "alpha_uniform_composite",
+        "alpha_gat_composite",
+        "alpha_wq_010_gap_quality",
+    ]
+    labels = {
+        "alpha_island_mean": ("No propagation", "Island mean"),
+        "alpha_uniform_composite": ("Graph anchor", "Uniform aggregation"),
+        "alpha_gat_composite": ("Learned graph", "GAT composite"),
+        "alpha_wq_010_gap_quality": ("Reference", "Best single factor"),
+    }
+    matched = diagnostics.set_index("alpha_name").loc[model_order].reset_index()
+    matched["Stage"] = matched["alpha_name"].map(lambda name: labels[name][0])
+    matched["Model"] = matched["alpha_name"].map(lambda name: labels[name][1])
+    comparison = matched[
         [
-            {
-                "Model": "Naive composite",
-                "OOS Sharpe": -1.39,
-                "Interpretation": "Contextual legacy baseline; not capacity matched",
-            },
-            {
-                "Model": "Uniform graph anchor",
-                "OOS Sharpe": -0.001,
-                "Interpretation": "Simple relational anchor",
-            },
-            {
-                "Model": "Selected GAT composite",
-                "OOS Sharpe": 1.42,
-                "Interpretation": "Improved over uniform; passed 3 of 4 gates",
-            },
-            {
-                "Model": "Best single factor",
-                "OOS Sharpe": 2.88,
-                "Interpretation": "Still the strongest standalone result",
-            },
+            "Stage",
+            "Model",
+            "oos_total_return",
+            "oos_annualized_return",
+            "oos_annualized_volatility",
+            "oos_sharpe",
+            "oos_max_drawdown",
+            "oos_observations",
         ]
+    ].rename(
+        columns={
+            "oos_total_return": "Total Return",
+            "oos_annualized_return": "Ann. Mean Return",
+            "oos_annualized_volatility": "Ann. Vol",
+            "oos_sharpe": "OOS Sharpe",
+            "oos_max_drawdown": "Max Drawdown",
+            "oos_observations": "OOS N",
+        }
     )
+    for column in ["Total Return", "Ann. Mean Return", "Ann. Vol", "Max Drawdown"]:
+        comparison[column] = comparison[column].map(lambda value: f"{value:.1%}")
+    comparison["OOS N"] = comparison["OOS N"].astype(int)
     st.dataframe(
-        equity_comparison,
+        comparison,
         width="stretch",
         hide_index=True,
         column_config={
-            "OOS Sharpe": st.column_config.NumberColumn(format="%.3f"),
+            "OOS Sharpe": st.column_config.NumberColumn(format="%.2f"),
         },
     )
     st.success(
-        "Across 30 optimisation seeds, GAT minus uniform Sharpe was positive. "
-        "That supports training stability, not independent statistical significance."
+        "Tuned 5-seed CPU validation: GAT OOS Sharpe 1.37 +/- 0.39 versus "
+        "uniform -1.05, a mean lift of +2.42. Attention lift was positive in "
+        "30/30 runs across three validation families."
+    )
+    st.warning(
+        "The best single factor remains stronger at OOS Sharpe 3.07, so the "
+        "strict value-added gate still fails. Seed repetition measures optimisation "
+        "stability, not independent market significance."
+    )
+    st.write(
+        "Both equity alpha runners share the original PyG GATConv-based kernel. "
+        "Uniform aggregation and GAT are still not parameter-count matched, so "
+        "the result is GAT-over-uniform performance rather than a pure causal "
+        "attention effect."
     )
     st.warning(
         "Remaining point-in-time caveat: the static equity graph is estimated on "
-        "the full in-sample window and then reused within earlier training dates. "
-        "This can introduce training-period look-ahead in graph construction."
+        "the full in-sample window and reused within earlier training dates."
     )
     st.caption(
-        "Attention coefficients are model diagnostics, not causal feature "
-        "importance. Observed weights were near-uniform, consistent with modest "
-        "and fairly stationary reweighting rather than a discovered causal "
-        "lead-lag structure."
+        "Attention coefficients are diagnostics, not causal feature importance. "
+        "Observed weights were near-uniform, consistent with modest reweighting."
     )
     if not equity_summary.empty:
-        with st.expander("Committed equity summary artefact"):
+        with st.expander("Earlier first-run summary (historical, not the headline)"):
             st.dataframe(equity_summary, width="stretch", hide_index=True)
 
 with node_tab:

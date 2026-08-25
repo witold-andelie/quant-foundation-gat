@@ -151,10 +151,10 @@ left, right = st.columns(2)
 with left:
     _finding_card(
         "EQUITY",
-        "30 / 30 seeds",
-        "GAT improved over the uniform anchor",
-        "Selected OOS Sharpe was 1.42 and 3 of 4 gates passed. The best single "
-        "factor still reached 2.88, so this is not an overall winner claim.",
+        "1.37 +/- 0.39",
+        "Tuned GAT OOS Sharpe across 5 CPU seeds",
+        "The matched uniform anchor was -1.05 (mean lift +2.42). Attention lift "
+        "was positive in 30/30 runs; the best single factor remained 3.07.",
     )
 with right:
     _finding_card(
